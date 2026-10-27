@@ -10,7 +10,7 @@
 npm run check
 ```
 
-Covers:
+Covers 109 tests across 14 files:
 
 - strict config defaults, unknown-key failure, regex compilation, numeric/enum/language bounds;
 - review-ask parsing (multiline, quotes, colons, backticks, direct-deny and reviewer-failure negatives, localized fallback);
