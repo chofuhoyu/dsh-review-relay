@@ -35,6 +35,8 @@ export declare class ReviewRelayRuntime {
     private readonly onApproval;
     /** Deliver only after the matching tool/result is committed. */
     private readonly onSessionEvent;
+    /** Relay a final Auto review denial that never asked the user. */
+    private maybeRelayDirectDeny;
     private stageDelivery;
     private deliver;
     private startTranslation;

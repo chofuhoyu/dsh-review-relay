@@ -1,11 +1,11 @@
 /** Host runtime: observe review asks, collect the browser note, and deliver once. */
 import type { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
-import type { Session, SessionEvent } from '@deepseek-ai/dsh-session'
+import type { Session, SessionEvent, SessionId } from '@deepseek-ai/dsh-session'
 import type { ApprovalOutcome, ApprovalRequestEvent } from '@deepseek-ai/dsh-user-approval/types'
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
 import type { DeliveryMode, PublicConfig, TranslationView } from '../shared/types.js'
-import { buildRelayMessage } from '../shared/template.js'
+import { buildRelayMessage, truncateReviewerReason } from '../shared/template.js'
 import { parseReviewAsk } from '../shared/parse.js'
 import type { ResolvedConfig } from './config.js'
 import { normalizeLocale, publicConfig, resolveTargetLanguage } from './config.js'
@@ -38,6 +38,11 @@ interface PendingDelivery {
   readonly callId: string | undefined
   readonly text: string
   readonly at: number
+}
+
+/** Structural lookup for the optional agent registry. */
+interface AgentLookup {
+  get(id: SessionId): Agent | undefined
 }
 
 /** Structural subset of `ctx.connection` used here (type-only). */
@@ -232,9 +237,12 @@ export class ReviewRelayRuntime {
       const callId = String(event.data.message.toolCallId)
       const key = this.deliveryMapKey(String(session.id), callId)
       const delivery = this.pendingDeliveries.get(key)
-      if (delivery === undefined) return
-      this.pendingDeliveries.delete(key)
-      queueMicrotask(() => { this.deliver(delivery) })
+      if (delivery !== undefined) {
+        this.pendingDeliveries.delete(key)
+        queueMicrotask(() => { this.deliver(delivery) })
+        return
+      }
+      this.maybeRelayDirectDeny(session, event.data, callId)
       return
     }
     if (event.type === 'turn/end') {
@@ -243,6 +251,34 @@ export class ReviewRelayRuntime {
         if (key.startsWith(prefix)) this.pendingDeliveries.delete(key)
       }
     }
+  }
+
+  /** Relay a final Auto review denial that never asked the user. */
+  private maybeRelayDirectDeny(
+    session: Session,
+    data: Extract<SessionEvent, { type: 'tool/result' }>['data'],
+    callId: string,
+  ): void {
+    if (!this.config.forwardOnDirectDeny) return
+    const info = data.error
+    if (info?.code !== 'AUTO_REVIEW_DENIED' || info.reason === undefined || info.reason.trim() === '') return
+    const key = deliveryKey({ sessionId: String(session.id), callId: `${callId}:direct-deny`, toolName: 'tool', reason: info.reason })
+    if (!this.delivered.mark(key)) return
+    const agents = this.ctx.get('agents') as AgentLookup | undefined
+    const agent = agents?.get(session.id)
+    if (agent === undefined) return
+    let toolName = 'tool'
+    const events = session.snapshotEvents()
+    for (let index = events.length - 1; index >= 0; index -= 1) {
+      const event = events[index]
+      if (event?.type !== 'tool/call' || String(event.data.callId) !== callId) continue
+      toolName = event.data.name
+      break
+    }
+    const reviewer = truncateReviewerReason(info.reason, this.config.maxForwardChars)
+    const text = `Auto review rejected tool "${toolName}".\n\nReviewer reason (verbatim):\n${reviewer.text}`
+    const delivery: PendingDelivery = { agent, sessionId: String(session.id), callId: undefined, text, at: Date.now() }
+    queueMicrotask(() => { this.deliver(delivery) })
   }
 
   private stageDelivery(

@@ -108,7 +108,7 @@ Every knob is in the plugin `Config`; unknown fields fail at load instead of bei
 | `translationModel` | string (optional) | current session model | Override the translation model. |
 | `translationTimeoutMs` | number | `10000` | Translation deadline, 100–120000. |
 | `delivery` | `'auto' \| 'inject' \| 'followup'` | `'auto'` | `auto` injects while a turn is open, otherwise follows up. |
-| `forwardOnDirectDeny` | boolean | `false` | Reserved: relay the reason for a direct denial with no ask. **Accepted but inactive in 0.1.0.** |
+| `forwardOnDirectDeny` | boolean | `false` | Also relay the reviewer reason for a direct denial with no ask (e.g. high risk / `never` policy) as one extra user message. |
 
 Default recognition pattern for the shipped ask text:
 
@@ -161,7 +161,6 @@ Default recognition pattern for the shipped ask text:
 - **The reviewer prompt is not changed.** Making Auto review itself speak Chinese needs an upstream config; this plugin only translates display and relay.
 - **`conversation.approval.detail` cannot be reused.** The official `ui-approval` entry already declares that child slot; declaring it again throws. The card uses the `useChat` standard prop to render the correlated command itself. In `0.2.1-rc.2` the official detail only renders a command (no diff).
 - **Injection failures have no toast.** The card is already closed after rejection; failures go to the Host log. The approval result is unaffected.
-- **`forwardOnDirectDeny` is not implemented yet.** The field is accepted for forward compatibility.
 - **Translation must be ready to be forwarded.** Translation starts when the card appears; if the user rejects before it finishes, the message carries the verbatim reason only. Rejection is never blocked and half a translation is never injected.
 - **Approvals without `callId` keep the official card.** Notes and translation are call-id addressed. Host-only `forwardMode: always` still relays the reason.
 - **Prepend is best-effort.** A future plugin that prepends and short-circuits the approval chain could hide the request. In the target composition ui-approval / ACP are ordinary listeners.

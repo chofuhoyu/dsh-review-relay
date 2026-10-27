@@ -26,6 +26,7 @@ interface HarnessOptions {
   readonly askReason?: string
   readonly translation?: 'ok' | 'fail'
   readonly adapterMode?: 'single' | 'repeat'
+  readonly directDeny?: string
   readonly onApproval?: (request: { sessionId: string; callId: string }) => Promise<ApprovalOutcome>
 }
 
@@ -120,6 +121,13 @@ async function harness(options: HarnessOptions = {}) {
   }))
   ctx.on('tools/pre-execute', (exec, next) => {
     if (exec.name !== 'probe') return next()
+    if (options.directDeny !== undefined) {
+      return Promise.resolve({
+        kind: 'deny',
+        reason: 'Auto review rejected tool "probe"; its body was not executed',
+        info: { name: 'AutoReviewDeniedError', code: 'AUTO_REVIEW_DENIED', reason: options.directDeny },
+      })
+    }
     return Promise.resolve({ kind: 'ask', reason: askReason })
   })
   ctx.on('approval/request', async (request) => {
@@ -251,6 +259,30 @@ describe('host relay integration', () => {
     await waitForIdle(h.ctx, h.agent)
     expect(injectedMessages(h.agent).filter(text => text.startsWith('User rejected tool'))).toHaveLength(0)
     expect(h.runs()).toBe(1)
+  })
+
+  it('relays a direct final denial when forwardOnDirectDeny is enabled', async () => {
+    const h = await harness({
+      config: { forwardOnDirectDeny: true, translate: false },
+      directDeny: 'sensitive exfiltration is never allowed',
+    })
+    send(h.agent)
+    await waitForIdle(h.ctx, h.agent)
+    const messages = injectedMessages(h.agent).filter(text => text.startsWith('Auto review rejected tool'))
+    expect(messages).toEqual([
+      'Auto review rejected tool "probe".\n\nReviewer reason (verbatim):\nsensitive exfiltration is never allowed',
+    ])
+    expect(h.runs()).toBe(0)
+  })
+
+  it('does not relay a direct final denial by default', async () => {
+    const h = await harness({
+      config: { translate: false },
+      directDeny: 'sensitive exfiltration is never allowed',
+    })
+    send(h.agent)
+    await waitForIdle(h.ctx, h.agent)
+    expect(injectedMessages(h.agent).filter(text => text.startsWith('Auto review rejected tool'))).toHaveLength(0)
   })
 
   it('relays only the reviewer reason under forwardMode always (M1 host-only path)', async () => {

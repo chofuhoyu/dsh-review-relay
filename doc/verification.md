@@ -18,7 +18,7 @@ Covers:
 - dedup TTL/bounds and delivery keys;
 - translation CJK skip, cache, in-flight dedup, timeout, provider failure, translator fallback, and disposal;
 - real Auto review integration: the shipped `Auto review denied tool "<tool>": <reason>` ask is observed and relayed verbatim;
-- host integration: note POST, translation endpoint, allow/no-injection, cancel/no-injection (via outcome), note-only, ordinary-approval notes, duplicate replay, cold reconstruction of the complete log via `Session.create`;
+- host integration: note POST, translation endpoint, allow/no-injection, cancel/no-injection (via outcome), note-only, ordinary-approval notes, duplicate replay, direct-denial opt-in/off, cold reconstruction of the complete log via `Session.create`;
 - client routing: priority-0 selector, display-reason fallback, no-`callId` decline, forward modes;
 - client API wire guards and document-relative routes;
 - server-rendered card markup for review/ordinary/forced/disabled cases;

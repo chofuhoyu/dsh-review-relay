@@ -12,5 +12,6 @@ Initial release.
 - Exactly-once delivery keyed by `(sessionId, callId)` with a hash fallback.
 - One-shot translation via the current LLM route with a bounded LRU, timeout, CJK skip, and `translator`-service fallback.
 - Official-card fallback for non-review approvals, missing config, missing `callId`, and crashed cards (the plugin disposes its chain entry).
+- Optional `forwardOnDirectDeny`: relays the structured reviewer reason from a final denial that never asked, without changing the tool result.
 - No custom Session events and no `appendPluginRecord`; audit comes from existing approval and inbox events.
 - zh/en locale dictionaries, strict config validation, and unit/integration/M0 probes.

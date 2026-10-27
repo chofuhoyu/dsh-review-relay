@@ -108,7 +108,7 @@ Reviewer reason (translated to <targetLanguage>):
 | `translationModel` | string（可选） | 当前会话模型 | 指定翻译模型。 |
 | `translationTimeoutMs` | number | `10000` | 翻译超时，100–120000。 |
 | `delivery` | `'auto' \| 'inject' \| 'followup'` | `'auto'` | `auto` 有打开回合用 `inject`，空闲用 `followup`。 |
-| `forwardOnDirectDeny` | boolean | `false` | 预留：直接拒绝（无 ask）也转交 reviewer 理由。**0.1.0 接受但暂不生效**，避免第一版范围膨胀。 |
+| `forwardOnDirectDeny` | boolean | `false` | 直接拒绝（无 ask，如 high 风险 / `never` 策略）也把 reviewer 理由作为一条额外 user 消息转交。 |
 
 默认识别规则（匹配 `0.2.1-rc.2` 的真实 ask 文案）：
 
@@ -161,7 +161,6 @@ Reviewer reason (translated to <targetLanguage>):
 - **不承诺让 reviewer 输出中文。** reviewer prompt 在 auto-review 包里；本插件只翻译展示和转交。
 - **`conversation.approval.detail` 子槽不能复用。** 该槽由官方 `ui-approval` entry 声明，第二个 chain entry 再声明会抛错。本插件不声明它，而是用 `useChat` 标准 prop 自己渲染关联命令；`0.2.1-rc.2` 的官方详情本来也只渲染命令，没有 diff。
 - **注入失败没有 toast。** 失败写 Host 日志；卡片在拒绝后已关闭。审批结果不受影响。
-- **`forwardOnDirectDeny` 尚未实现**，配置会被接受但当前不产生行为。
 - **翻译来不及就只转原文。** 翻译在卡片出现时并行开始；用户拒绝时若译文尚未就绪，转交消息只含原文块，不阻塞拒绝、不注入半截译文。
 - **没有 `callId` 的审批不接管卡片**，因为附言和翻译端点都以 `callId` 寻址；Host-only 的 `forwardMode: always` 仍可转交原文。
 - **prepend 是“在已有监听器之前”**；如果未来有插件再 prepend 并短路审批链，本插件可能观察不到。目标组合中 ui-approval / ACP 都是普通监听器。
