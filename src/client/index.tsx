@@ -52,11 +52,15 @@ async function install(ctx: ClientContext, getLocale: () => string, signal: Abor
     return matchApproval(pendingInteraction, config, pattern)
   }
 
-  ctx.slots.inject('shell.overlay', () => ctx.slots.register({
-    name: 'shell.overlay',
-    id: 'review-relay.toast',
-    order: 100,
-  }, RelayToastView))
+  try {
+    ctx.slots.inject('shell.overlay', () => ctx.slots.register({
+      name: 'shell.overlay',
+      id: 'review-relay.toast',
+      order: 100,
+    }, RelayToastView))
+  } catch (error: unknown) {
+    console.warn('review-relay: toast overlay unavailable; card still active', error)
+  }
 
   try {
     ctx.slots.inject('conversation.composer', () => {

@@ -55,7 +55,7 @@ interface ConnectionLike {
 }
 
 /** How long an unanswered pending review is retained before pruning. */
-const PENDING_TTL_MS = 5 * 60 * 1000
+const PENDING_TTL_MS = 60 * 60 * 1000
 
 /**
  * Resolve how a prepared message enters the agent.
@@ -189,7 +189,13 @@ export class ReviewRelayRuntime {
       this.startTranslation(pending)
     }
 
-    const outcome = await next()
+    let outcome: ApprovalOutcome
+    try {
+      outcome = await next()
+    } catch (error: unknown) {
+      this.pendingReviews.delete(key)
+      throw error
+    }
     const settled = this.pendingReviews.get(key) ?? pending
     this.pendingReviews.delete(key)
     if (outcome !== 'rejected') return outcome
@@ -404,7 +410,7 @@ export class ReviewRelayRuntime {
       path: '/api/review-relay/config',
       methods: ['GET'],
       requestBody: 'buffered',
-      fetch: (request) => Promise.resolve(this.configResponse(request)),
+      fetch: (request) => this.guard(async () => this.configResponse(request)),
     })
     register({
       path: '/api/review-relay/note',
