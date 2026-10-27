@@ -64,7 +64,7 @@ export function matchApproval(value: unknown, config: PublicConfig, pattern: Reg
     ...value.reason === undefined ? {} : { reason: value.reason },
     ...value.displayReason === undefined ? {} : { displayReason: value.displayReason },
   }, pattern) ?? null
-  if (review === null && !config.noteForNonReviewApprovals) return null
+  if (review === null && (!config.noteForNonReviewApprovals || !config.noteEnabled)) return null
   return { approval: value, review }
 }
 

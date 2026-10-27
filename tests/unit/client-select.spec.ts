@@ -80,6 +80,11 @@ describe('approval routing', () => {
     expect(matched?.review).toBeNull()
   })
 
+  it('declines ordinary approvals when notes are disabled even with the opt-in', () => {
+    const ordinary = approval({ reason: 'ordinary approval', displayReason: undefined })
+    expect(matchApproval(ordinary, { ...config, noteForNonReviewApprovals: true, noteEnabled: false }, compileClientPattern(config))).toBeNull()
+  })
+
   it('declines approvals without a call id', () => {
     expect(matchApproval(approval({ callId: undefined }), config, compileClientPattern(config))).toBeNull()
     expect(matchApproval(approval({ callId: '' }), config, compileClientPattern(config))).toBeNull()
