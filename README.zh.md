@@ -108,7 +108,7 @@ Reviewer reason (translated to <targetLanguage>):
 | `translationModel` | string（可选） | 当前会话模型 | 指定翻译模型。 |
 | `translationTimeoutMs` | number | `10000` | 翻译超时，100–120000。 |
 | `delivery` | `'auto' \| 'inject' \| 'followup'` | `'auto'` | `auto` 有打开回合用 `inject`，空闲用 `followup`。 |
-| `forwardOnDirectDeny` | boolean | `false` | 直接拒绝（无 ask，如 high 风险 / `never` 策略）也把 reviewer 理由作为一条额外 user 消息转交。 |
+| `forwardOnDirectDeny` | boolean | `false` | 直接拒绝（无 ask，如 high 风险 / `never` 策略）也把 reviewer 理由作为一条额外 user 消息转交；这条路径没有卡片，只转原文。 |
 
 默认识别规则（匹配 `0.2.1-rc.2` 的真实 ask 文案）：
 

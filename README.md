@@ -108,7 +108,7 @@ Every knob is in the plugin `Config`; unknown fields fail at load instead of bei
 | `translationModel` | string (optional) | current session model | Override the translation model. |
 | `translationTimeoutMs` | number | `10000` | Translation deadline, 100–120000. |
 | `delivery` | `'auto' \| 'inject' \| 'followup'` | `'auto'` | `auto` injects while a turn is open, otherwise follows up. |
-| `forwardOnDirectDeny` | boolean | `false` | Also relay the reviewer reason for a direct denial with no ask (e.g. high risk / `never` policy) as one extra user message. |
+| `forwardOnDirectDeny` | boolean | `false` | Also relay the reviewer reason for a direct denial with no ask (e.g. high risk / `never` policy) as one extra user message. This path has no card and forwards the original only. |
 
 Default recognition pattern for the shipped ask text:
 
