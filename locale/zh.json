@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "审查回传",
+    "description": "把 Auto review 的拒绝意见和你在拒绝时写的说明，回传给正在工作的 agent。"
+  }
+}
