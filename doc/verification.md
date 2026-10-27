@@ -56,6 +56,16 @@ window.__ModuleLoader__.load({ id: "dsh-review-relay", factory: (require) => { .
 
 `GET /api/review-relay/config?locale=zh-CN` returned HTTP 200 with `protocol: 1`, the configured defaults, and the recognition pattern. This verifies the bundle patch, the client module graph, and the authenticated host route in a real `0.2.1-rc.2` composition.
 
+## GitHub distribution
+
+A second throwaway profile installed the pushed repository over HTTPS:
+
+```sh
+dsh plugin --profile relay-gh add git+https://github.com/chofuhoyu/dsh-review-relay.git
+```
+
+The install completed, the profile composed `# == dsh-review-relay / id: review-relay / name: dsh-review-relay`, and the linked package contained the committed `lib/index.js`, `lib/client.js`, types, patch, locales, icon, and docs. The `github:` shorthand can resolve to SSH; use the `git+https://` form when the machine has no GitHub SSH configuration.
+
 ## Not yet exercised
 
 - A manual end-to-end click-through with a live Auto review denial in the browser (the automated suite uses the real Auto review plugin and a real Agent loop, but drives the approval through a test answerer).

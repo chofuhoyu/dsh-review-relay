@@ -24,7 +24,7 @@ Auto review 判 deny、审批策略为 `ask` 时，官方卡片会把 reviewer �
 从 GitHub 安装到 profile（当前未发布 npm）：
 
 ```sh
-dsh plugin --profile web add github:chofuhoyu/dsh-review-relay
+dsh plugin --profile web add git+https://github.com/chofuhoyu/dsh-review-relay.git
 ```
 
 或从本地 checkout 安装：

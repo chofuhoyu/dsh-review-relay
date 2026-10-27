@@ -24,7 +24,7 @@ Requires DSH `0.2.1-rc.2` (or a compatible `0.2.x`), Auto review enabled, and th
 From GitHub (not published to npm):
 
 ```sh
-dsh plugin --profile web add github:chofuhoyu/dsh-review-relay
+dsh plugin --profile web add git+https://github.com/chofuhoyu/dsh-review-relay.git
 ```
 
 Or from a local checkout:
