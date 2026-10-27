@@ -165,6 +165,8 @@ Default recognition pattern for the shipped ask text:
 - **Approvals without `callId` keep the official card.** Notes and translation are call-id addressed. Host-only `forwardMode: always` still relays the reason.
 - **Prepend is best-effort.** A future plugin that prepends and short-circuits the approval chain could hide the request. In the target composition ui-approval / ACP are ordinary listeners.
 
+See [doc/manual-e2e.md](doc/manual-e2e.md) for the AC-1 … AC-14 click-through checklist.
+
 ## Development
 
 ```sh

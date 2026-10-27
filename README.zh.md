@@ -165,6 +165,8 @@ Reviewer reason (translated to <targetLanguage>):
 - **没有 `callId` 的审批不接管卡片**，因为附言和翻译端点都以 `callId` 寻址；Host-only 的 `forwardMode: always` 仍可转交原文。
 - **prepend 是“在已有监听器之前”**；如果未来有插件再 prepend 并短路审批链，本插件可能观察不到。目标组合中 ui-approval / ACP 都是普通监听器。
 
+AC-1 … AC-14 的点击验收清单见 [doc/manual-e2e.md](doc/manual-e2e.md)。
+
 ## 开发与验证
 
 ```sh
