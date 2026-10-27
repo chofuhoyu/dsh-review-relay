@@ -61,6 +61,14 @@ export function isTranslationView(value: unknown): value is TranslationView {
   return value['status'] === 'skipped' || value['status'] === 'failed'
 }
 
+/** Delivery state exposed after a rejection. */
+export type DeliveryState = 'pending' | 'delivered' | 'failed'
+
+/** Whether a wire value is a delivery state. */
+export function isDeliveryState(value: unknown): value is DeliveryState {
+  return value === 'pending' || value === 'delivered' || value === 'failed'
+}
+
 /** Result of a note submission attempt. */
 export type NoteSubmitResult =
   | { readonly ok: true }
@@ -122,6 +130,35 @@ export async function submitNote(request: NoteRequest, signal?: AbortSignal): Pr
       code: 'network',
       message: error instanceof Error ? error.message : 'network error',
     }
+  }
+}
+
+/**
+ * Read the host-side delivery state for one rejected call.
+ * @param sessionId - pending session identity.
+ * @param callId - pending tool call identity.
+ * @param signal - watcher cancellation.
+ * @returns the state, or undefined when the route has no record yet.
+ */
+export async function fetchDeliveryStatus(
+  sessionId: string,
+  callId: string,
+  signal: AbortSignal,
+): Promise<DeliveryState | undefined> {
+  try {
+    const query = new URLSearchParams({ sessionId, callId })
+    const response = await fetch(`${endpoint('delivery')}?${query.toString()}`, {
+      method: 'GET',
+      headers: { accept: 'application/json' },
+      cache: 'no-store',
+      signal,
+    })
+    if (!response.ok) return undefined
+    const value: unknown = await response.json()
+    if (!isRecord(value)) return undefined
+    return isDeliveryState(value['state']) ? value['state'] : undefined
+  } catch {
+    return undefined
   }
 }
 

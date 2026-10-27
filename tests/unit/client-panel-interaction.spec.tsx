@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { PublicConfig } from '../../src/shared/types.js'
 import { ReviewRelayPanel, type ReviewRelayPanelProps } from '../../src/client/panel.js'
 import { RelayToastView, disposeRelayToast } from '../../src/client/toast.js'
+import { disposeDeliveryWatch } from '../../src/client/delivery-watch.js'
 import type { MatchedApproval } from '../../src/client/select.js'
 import { en, type ReviewRelayKey } from '../../src/client/locales.js'
 
@@ -70,7 +71,7 @@ function renderPanel(overrides: Partial<ReviewRelayPanelProps> = {}, matched = m
   )
 }
 
-function routeFetch(handlers: { translation?: () => Response; note?: () => Response } = {}) {
+function routeFetch(handlers: { translation?: () => Response; note?: () => Response; delivery?: () => Response } = {}) {
   const mock = vi.fn(async (input: RequestInfo | URL) => {
     const url = String(input)
     if (url.includes('/translation')) {
@@ -78,6 +79,9 @@ function routeFetch(handlers: { translation?: () => Response; note?: () => Respo
     }
     if (url.includes('/note')) {
       return handlers.note?.() ?? Response.json({ ok: true })
+    }
+    if (url.includes('/delivery')) {
+      return handlers.delivery?.() ?? Response.json({ state: 'delivered' })
     }
     return new Response('not found', { status: 404 })
   })
@@ -88,6 +92,7 @@ function routeFetch(handlers: { translation?: () => Response; note?: () => Respo
 afterEach(() => {
   cleanup()
   disposeRelayToast()
+  disposeDeliveryWatch()
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
 })
@@ -114,6 +119,17 @@ describe('review relay panel interactions', () => {
       locale: 'zh-CN',
     })
     await waitFor(() => { expect(screen.getByText('Rejected; the note was relayed to the agent')).toBeTruthy() })
+  })
+
+  it('replaces the success toast with a visible error when delivery fails', async () => {
+    const matched = makeMatched()
+    routeFetch({ delivery: () => Response.json({ state: 'failed' }) })
+    renderPanel({}, matched)
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'use pnpm clean' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Reject and send note' }))
+    await waitFor(() => {
+      expect(screen.getByText('Rejection succeeded, but relaying the note failed; check the Host log')).toBeTruthy()
+    })
   })
 
   it('keeps the card open on a note failure and offers a plain reject fallback', async () => {

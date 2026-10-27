@@ -234,6 +234,13 @@ describe('host relay integration', () => {
     ])
     expect(h.runs()).toBe(0)
     expect(h.adapter.translationCalls).toBe(1)
+    const deliveryRoute = h.routes.get('/api/review-relay/delivery')
+    expect(deliveryRoute).toBeDefined()
+    const delivery = await deliveryRoute!.fetch(new Request(
+      `http://localhost/api/review-relay/delivery?sessionId=integration&callId=call-1`,
+    ))
+    expect(delivery.status).toBe(200)
+    expect(await delivery.json()).toEqual({ state: 'delivered' })
 
     // Cold load: serialize the exact log, parse it, and reconstruct the session.
     const events = h.agent.session.snapshotEvents()

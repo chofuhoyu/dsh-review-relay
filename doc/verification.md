@@ -19,7 +19,8 @@ Covers:
 - translation CJK skip, cache, in-flight dedup, timeout, provider failure, translator fallback, and disposal;
 - real Auto review integration: the shipped `Auto review denied tool "<tool>": <reason>` ask is observed and relayed verbatim;
 - host integration: note POST, translation endpoint, allow/no-injection, cancel/no-injection (via outcome), note-only, ordinary-approval notes, duplicate replay, direct-denial opt-in/off, cold reconstruction of the complete log via `Session.create`;
-- client routing: priority-0 selector, display-reason fallback, no-`callId` decline, forward modes;
+- client routing: priority-0 selector, display-reason fallback, no-`callId` decline, forward modes, and the delivery-status error toast;
+- injection status: `GET /api/review-relay/delivery` reports delivered after a successful reject, and the client surfaces a failed state as an error toast;
 - client API wire guards and document-relative routes;
 - server-rendered card markup for review/ordinary/forced/disabled cases;
 - built `lib/client.js` executed through a fake `window.__ModuleLoader__` with React as the loader baseline.

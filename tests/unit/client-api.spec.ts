@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { PublicConfig } from '../../src/shared/types.js'
 import {
   fetchConfig,
+  fetchDeliveryStatus,
   fetchTranslation,
   isPublicConfig,
   isTranslationView,
@@ -110,6 +111,15 @@ describe('client routes', () => {
     expect(url).toContain('api/review-relay/translation?')
     expect(url).toContain('sessionId=s')
     expect(url).toContain('callId=c')
+  })
+
+  it('reads the delivery state after a rejection', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json({ state: 'failed' })))
+    await expect(fetchDeliveryStatus('s', 'c', new AbortController().signal)).resolves.toBe('failed')
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json({ state: 'bogus' })))
+    await expect(fetchDeliveryStatus('s', 'c', new AbortController().signal)).resolves.toBeUndefined()
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('nope', { status: 404 })))
+    await expect(fetchDeliveryStatus('s', 'c', new AbortController().signal)).resolves.toBeUndefined()
   })
 
   it('returns undefined for an unavailable translation', async () => {

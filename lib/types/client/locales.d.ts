@@ -36,6 +36,7 @@ export declare const zh: {
     readonly closed: "已处理";
     readonly command: "命令";
     readonly relayed: "已拒绝，说明已转交给 agent";
+    readonly deliveryFailed: "拒绝成功，但说明转交失败；请查看 Host 日志";
     readonly 'error.network': "网络错误";
     readonly 'error.noteTooLong': "说明过长";
     readonly 'error.noteDisabled': "当前配置不允许附带说明";

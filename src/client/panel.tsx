@@ -7,6 +7,7 @@ import type { ApprovalLike, MatchedApproval } from './select.js'
 import { forwardForced, forwardVisible, initialForward } from './select.js'
 import { fetchTranslation, submitNote } from './api.js'
 import { showRelayToast } from './toast.js'
+import { watchDelivery } from './delivery-watch.js'
 import type { PublicConfig } from '../shared/types.js'
 
 /** Injection seat supplied by the chain registration. */
@@ -199,7 +200,10 @@ export function ReviewRelayPanel(props: ReviewRelayPanelProps): ReactNode {
       }
       await approval.answer('rejected')
       setSettled(true)
-      if (relayed) showRelayToast(props.t('relayed'))
+      if (relayed) {
+        showRelayToast(props.t('relayed'))
+        if (approval.callId !== undefined) watchDelivery(approval.sessionId, approval.callId, props.t)
+      }
     } catch {
       setError({ code: 'approval-not-pending', message: '' })
       setSettled(!approval.answerable)

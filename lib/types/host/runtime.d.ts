@@ -2,6 +2,8 @@
 import type { Context } from '@deepseek-ai/cordis';
 import type { DeliveryMode } from '../shared/types.js';
 import type { ResolvedConfig } from './config.js';
+/** Delivery state exposed to the browser after a rejection. */
+export type DeliveryState = 'pending' | 'delivered' | 'failed';
 /**
  * Resolve how a prepared message enters the agent.
  * @param status - live agent status at delivery time.
@@ -17,6 +19,7 @@ export declare class ReviewRelayRuntime {
     private readonly delivered;
     private readonly pendingReviews;
     private readonly pendingDeliveries;
+    private readonly deliveryStatus;
     private clientLocale;
     private httpReady;
     private disposed;
@@ -47,6 +50,8 @@ export declare class ReviewRelayRuntime {
     private translationResponse;
     private installHttp;
     private guard;
+    private deliveryResponse;
+    private recordDelivery;
     private rememberLocale;
     private pendingKey;
     private deliveryMapKey;

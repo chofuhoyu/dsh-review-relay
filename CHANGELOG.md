@@ -13,5 +13,6 @@ Initial release.
 - One-shot translation via the current LLM route with a bounded LRU, timeout, CJK skip, and `translator`-service fallback.
 - Official-card fallback for non-review approvals, missing config, missing `callId`, and crashed cards (the plugin disposes its chain entry).
 - Optional `forwardOnDirectDeny`: relays the structured reviewer reason from a final denial that never asked, without changing the tool result.
+- Post-rejection delivery watcher: `GET /api/review-relay/delivery` reports pending/delivered/failed, and the client replaces the success toast with a visible error toast if injection fails within the watch window.
 - No custom Session events and no `appendPluginRecord`; audit comes from existing approval and inbox events.
 - zh/en locale dictionaries, strict config validation, and unit/integration/M0 probes.

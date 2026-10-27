@@ -8,6 +8,10 @@ export declare function uiLocale(active: string | undefined): string;
 export declare function isPublicConfig(value: unknown): value is PublicConfig;
 /** Validate one translation view. */
 export declare function isTranslationView(value: unknown): value is TranslationView;
+/** Delivery state exposed after a rejection. */
+export type DeliveryState = 'pending' | 'delivered' | 'failed';
+/** Whether a wire value is a delivery state. */
+export declare function isDeliveryState(value: unknown): value is DeliveryState;
 /** Result of a note submission attempt. */
 export type NoteSubmitResult = {
     readonly ok: true;
@@ -30,6 +34,14 @@ export declare function fetchConfig(locale: string, signal: AbortSignal): Promis
  * @returns success or a card-displayable error code/message.
  */
 export declare function submitNote(request: NoteRequest, signal?: AbortSignal): Promise<NoteSubmitResult>;
+/**
+ * Read the host-side delivery state for one rejected call.
+ * @param sessionId - pending session identity.
+ * @param callId - pending tool call identity.
+ * @param signal - watcher cancellation.
+ * @returns the state, or undefined when the route has no record yet.
+ */
+export declare function fetchDeliveryStatus(sessionId: string, callId: string, signal: AbortSignal): Promise<DeliveryState | undefined>;
 /**
  * Read the reviewer-reason translation for a pending approval.
  * @param sessionId - pending session identity.

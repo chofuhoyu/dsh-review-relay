@@ -31,6 +31,9 @@ interface PendingReview {
   readonly at: number
 }
 
+/** Delivery state exposed to the browser after a rejection. */
+export type DeliveryState = 'pending' | 'delivered' | 'failed'
+
 /** One prepared message waiting for its committed tool result. */
 interface PendingDelivery {
   readonly agent: Agent
@@ -80,6 +83,7 @@ export class ReviewRelayRuntime {
   private readonly delivered = new DeliveredSet()
   private readonly pendingReviews = new Map<string, PendingReview>()
   private readonly pendingDeliveries = new Map<string, PendingDelivery>()
+  private readonly deliveryStatus = new Map<string, { state: DeliveryState; at: number }>()
   private clientLocale: string | undefined
   private httpReady = false
   private disposed = false
@@ -130,6 +134,7 @@ export class ReviewRelayRuntime {
     this.translator.clear()
     this.pendingReviews.clear()
     this.pendingDeliveries.clear()
+    this.deliveryStatus.clear()
     this.delivered.clear()
   }
 
@@ -299,6 +304,7 @@ export class ReviewRelayRuntime {
       queueMicrotask(() => { this.deliver(delivery) })
       return
     }
+    this.recordDelivery(sessionId, callId, 'pending')
     this.pendingDeliveries.set(this.deliveryMapKey(sessionId, callId), delivery)
   }
 
@@ -312,12 +318,14 @@ export class ReviewRelayRuntime {
     try {
       if (mode === 'followup') delivery.agent.followup(message)
       else delivery.agent.inject(message)
+      this.recordDelivery(delivery.sessionId, delivery.callId, 'delivered')
       this.ctx.logger.info(`review-relay: delivered rejection notice via ${mode}`)
     } catch (error: unknown) {
       if (attempt === 0) {
         setTimeout(() => { this.deliver(delivery, 1) }, 50)
         return
       }
+      this.recordDelivery(delivery.sessionId, delivery.callId, 'failed')
       this.ctx.logger.warn(
         `review-relay: failed to deliver rejection notice: ${error instanceof Error ? error.message : String(error)}`,
       )
@@ -460,6 +468,12 @@ export class ReviewRelayRuntime {
       requestBody: 'buffered',
       fetch: (request) => this.guard(() => this.translationResponse(request)),
     })
+    register({
+      path: '/api/review-relay/delivery',
+      methods: ['GET'],
+      requestBody: 'buffered',
+      fetch: (request) => this.guard(async () => this.deliveryResponse(request)),
+    })
     this.httpReady = true
   }
 
@@ -471,6 +485,31 @@ export class ReviewRelayRuntime {
         `review-relay: route failed: ${error instanceof Error ? error.message : String(error)}`,
       )
       return errorResponse(500, 'internal-error', 'review-relay route failed')
+    }
+  }
+
+  private deliveryResponse(request: Request): Response {
+    if (request.method !== 'GET') return errorResponse(405, 'method-not-allowed', 'method must be GET')
+    const url = new URL(request.url)
+    const sessionId = url.searchParams.get('sessionId')
+    const callId = url.searchParams.get('callId')
+    if (sessionId === null || sessionId === '' || callId === null || callId === '') {
+      return errorResponse(400, 'bad-request', 'sessionId and callId are required')
+    }
+    const record = this.deliveryStatus.get(this.deliveryMapKey(sessionId, callId))
+    if (record === undefined) return errorResponse(404, 'delivery-not-found', 'no delivery recorded for this call')
+    return jsonResponse(200, { state: record.state })
+  }
+
+  private recordDelivery(sessionId: string, callId: string | undefined, state: DeliveryState): void {
+    if (callId === undefined) return
+    const key = this.deliveryMapKey(sessionId, callId)
+    this.deliveryStatus.delete(key)
+    this.deliveryStatus.set(key, { state, at: Date.now() })
+    while (this.deliveryStatus.size > 2048) {
+      const oldest = this.deliveryStatus.keys().next()
+      if (oldest.done === true) break
+      this.deliveryStatus.delete(oldest.value)
     }
   }
 

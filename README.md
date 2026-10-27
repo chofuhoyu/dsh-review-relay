@@ -137,7 +137,7 @@ Default recognition pattern for the shipped ask text:
 - Allow once: no note submitted, no injection.
 - Reject with empty note and no forwarding: no injection.
 - Cancel / timeout / session close: no injection.
-- Injection failure leaves the rejection intact, retries at most once, and logs a Host warning.
+- Injection failure leaves the rejection intact, retries at most once, logs a Host warning, and surfaces an error toast through the 6-second delivery-status watch.
 - Cross-session: only the agent/session from the approval request is injected.
 - Dedup: `(sessionId, callId)`, or `(sessionId, toolName, reason hash)` when `callId` is absent.
 
@@ -150,7 +150,7 @@ Default recognition pattern for the shipped ask text:
 | No client / config route fails | Official card; no note. `forwardMode: always` still forwards the reviewer reason. |
 | Note POST fails | Card stays open with an error; retry or “Reject without a note”. |
 | Translation timeout / failure | Original + notice; rejection works; no empty translation block. |
-| Injection failure | Approval stays rejected; Host warning; one retry. |
+| Injection failure | Approval stays rejected; Host warning plus an error toast within 6 seconds; one retry. |
 | Cancellation / session close | No injection; state cleared. |
 | Duplicate submit / replay | Exactly once by approval id / callId. |
 | Oversized note / reason | Note rejected; reason truncated with an explicit marker. |
@@ -160,7 +160,7 @@ Default recognition pattern for the shipped ask text:
 
 - **The reviewer prompt is not changed.** Making Auto review itself speak Chinese needs an upstream config; this plugin only translates display and relay.
 - **`conversation.approval.detail` cannot be reused.** The official `ui-approval` entry already declares that child slot; declaring it again throws. The card uses the `useChat` standard prop to render the correlated command itself. In `0.2.1-rc.2` the official detail only renders a command (no diff).
-- **Injection failures have no toast.** The card is already closed after rejection; failures go to the Host log. The approval result is unaffected.
+- **Injection failure feedback has a 6-second window.** After the card closes the client briefly polls `api/review-relay/delivery`; a later failure is Host-log only. The approval result is unaffected.
 - **Translation must be ready to be forwarded.** Translation starts when the card appears; if the user rejects before it finishes, the message carries the verbatim reason only. Rejection is never blocked and half a translation is never injected.
 - **Approvals without `callId` keep the official card.** Notes and translation are call-id addressed. Host-only `forwardMode: always` still relays the reason.
 - **Prepend is best-effort.** A future plugin that prepends and short-circuits the approval chain could hide the request. In the target composition ui-approval / ACP are ordinary listeners.

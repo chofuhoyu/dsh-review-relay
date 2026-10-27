@@ -11,6 +11,7 @@ import { ReviewRelayPanel, type ReviewRelayInjected } from './panel.js'
 import { compileClientPattern, matchApproval, type MatchedApproval } from './select.js'
 import { installStyles } from './styles.js'
 import { disposeRelayToast, RelayToastView } from './toast.js'
+import { disposeDeliveryWatch } from './delivery-watch.js'
 
 /** Required client services: the slot registry and copy. */
 export const inject = ['slots', 'locale']
@@ -24,7 +25,7 @@ export function apply(ctx: ClientContext): void {
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'review-relay: locale')
   ctx.effect(() => installStyles(), 'review-relay: styles')
   const lifetime = new AbortController()
-  ctx.effect(() => () => { lifetime.abort(); disposeRelayToast() }, 'review-relay: lifetime')
+  ctx.effect(() => () => { lifetime.abort(); disposeRelayToast(); disposeDeliveryWatch() }, 'review-relay: lifetime')
   const getLocale = (): string => uiLocale(ctx.locale.getSnapshot().active)
   void install(ctx, getLocale, lifetime.signal)
 }

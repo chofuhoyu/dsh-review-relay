@@ -137,7 +137,7 @@ Reviewer reason (translated to <targetLanguage>):
 - 允许一次：不提交附言、不注入。
 - 拒绝但说明/转交为空：不注入。
 - 取消 / 超时 / 会话关闭：不注入。
-- 注入失败：审批仍然是拒绝，最多重试一次，并写 Host 警告日志；不会重试风暴。
+- 注入失败：审批仍然是拒绝，最多重试一次，写 Host 警告日志，并通过 6 秒投递状态轮询显示错误 toast；不会重试风暴。
 - 跨会话：只注入 `approval/request` 带来的同一个 agent / session。
 - 去重：`(sessionId, callId)`；`callId` 缺失时用 `(sessionId, toolName, reason 哈希)` 兜底。
 
@@ -150,7 +150,7 @@ Reviewer reason (translated to <targetLanguage>):
 | Client 未连接 / config 端点失败 | 官方卡片；没有附言可转交；`forwardMode: always` 时仍只转交审查意见。 |
 | 附言 POST 失败 | 卡片保持打开，显示错误；可重试或“不带说明直接拒绝”。 |
 | 翻译超时 / 失败 | 显示原文 + 提示；拒绝照常；不注入空译文块。 |
-| 注入失败 | 审批仍是拒绝；Host 日志可见；最多一次重试。 |
+| 注入失败 | 审批仍是拒绝；Host 日志 + 卡片关闭后 6 秒内的错误 toast；最多一次重试。 |
 | 审批取消 / 会话关闭 | 不注入，清理状态。 |
 | 重复提交 / 重放 | 按审批 id / callId 去重，恰好一次。 |
 | 超长附言 / 审查意见 | 附言超限阻止提交；审查意见按配置截断并显式标记。 |
@@ -160,7 +160,7 @@ Reviewer reason (translated to <targetLanguage>):
 
 - **不承诺让 reviewer 输出中文。** reviewer prompt 在 auto-review 包里；本插件只翻译展示和转交。
 - **`conversation.approval.detail` 子槽不能复用。** 该槽由官方 `ui-approval` entry 声明，第二个 chain entry 再声明会抛错。本插件不声明它，而是用 `useChat` 标准 prop 自己渲染关联命令；`0.2.1-rc.2` 的官方详情本来也只渲染命令，没有 diff。
-- **注入失败没有 toast。** 失败写 Host 日志；卡片在拒绝后已关闭。审批结果不受影响。
+- **注入失败提示有 6 秒窗口。** 卡片关闭后客户端会短轮询 `api/review-relay/delivery`；超过窗口的失败只写 Host 日志。审批结果不受影响。
 - **翻译来不及就只转原文。** 翻译在卡片出现时并行开始；用户拒绝时若译文尚未就绪，转交消息只含原文块，不阻塞拒绝、不注入半截译文。
 - **没有 `callId` 的审批不接管卡片**，因为附言和翻译端点都以 `callId` 寻址；Host-only 的 `forwardMode: always` 仍可转交原文。
 - **prepend 是“在已有监听器之前”**；如果未来有插件再 prepend 并短路审批链，本插件可能观察不到。目标组合中 ui-approval / ACP 都是普通监听器。
