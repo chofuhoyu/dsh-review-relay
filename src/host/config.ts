@@ -185,6 +185,7 @@ export function publicConfig(config: ReviewRelayConfig, resolvedTargetLanguage: 
     translate: config.translate,
     translateForForward: config.translateForForward,
     translationProvider: config.translationProvider,
+    translationTimeoutMs: config.translationTimeoutMs,
     reviewerReasonPattern: config.reviewerReasonPattern,
   }
 }

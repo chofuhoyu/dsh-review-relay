@@ -193,7 +193,17 @@ describe('host relay integration', () => {
           locale: 'zh-CN',
         })
         expect(response.status).toBe(200)
-        await new Promise<void>((resolve) => setTimeout(resolve, 10))
+        const translationRoute = h.routes.get('/api/review-relay/translation')
+        expect(translationRoute).toBeDefined()
+        const translation = await translationRoute!.fetch(new Request(
+          `http://localhost/api/review-relay/translation?sessionId=${encodeURIComponent(sessionId)}&callId=${encodeURIComponent(callId)}&locale=zh-CN`,
+        ))
+        expect(translation.status).toBe(200)
+        expect(await translation.json()).toMatchObject({
+          status: 'ok',
+          text: '删除构建目录',
+          targetLanguage: 'zh-CN',
+        })
         return 'rejected'
       },
     })
@@ -264,7 +274,13 @@ describe('host relay integration', () => {
           forward: true,
         })
         expect(response.status).toBe(200)
-        await new Promise<void>((resolve) => setTimeout(resolve, 10))
+        const translationRoute = h.routes.get('/api/review-relay/translation')
+        expect(translationRoute).toBeDefined()
+        const translation = await translationRoute!.fetch(new Request(
+          `http://localhost/api/review-relay/translation?sessionId=${encodeURIComponent(sessionId)}&callId=${encodeURIComponent(callId)}&locale=zh-CN`,
+        ))
+        expect(translation.status).toBe(200)
+        expect(await translation.json()).toMatchObject({ status: 'failed', targetLanguage: 'zh-CN' })
         return 'rejected'
       },
     })
@@ -287,7 +303,13 @@ describe('host relay integration', () => {
           forward: true,
         })
         expect(response.status).toBe(200)
-        await new Promise<void>((resolve) => setTimeout(resolve, 10))
+        const translationRoute = h.routes.get('/api/review-relay/translation')
+        expect(translationRoute).toBeDefined()
+        const translation = await translationRoute!.fetch(new Request(
+          `http://localhost/api/review-relay/translation?sessionId=${encodeURIComponent(sessionId)}&callId=${encodeURIComponent(callId)}&locale=zh-CN`,
+        ))
+        expect(translation.status).toBe(200)
+        expect(await translation.json()).toMatchObject({ status: 'skipped', targetLanguage: 'zh-CN' })
         return 'rejected'
       },
     })

@@ -31,6 +31,7 @@ export interface PublicConfig {
   readonly translate: boolean
   readonly translateForForward: boolean
   readonly translationProvider: TranslationProvider
+  readonly translationTimeoutMs: number
   readonly reviewerReasonPattern: string
 }
 
