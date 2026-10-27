@@ -11,7 +11,7 @@ import type { ResolvedConfig } from './config.js'
 import { normalizeLocale, publicConfig, resolveTargetLanguage } from './config.js'
 import { DeliveredSet, deliveryKey } from './dedup.js'
 import { errorResponse, isRecord, jsonResponse, readJsonBody, stringField, booleanField } from './http.js'
-import { TranslationService, translationRouteOf, type TranslationResult } from './translate.js'
+import { TranslationService, translationRouteOf, type TranslationResult, type TranslationRuntime } from './translate.js'
 
 /** One review ask awaiting a browser answer/note. */
 interface PendingReview {
@@ -71,7 +71,13 @@ export class ReviewRelayRuntime {
     private readonly ctx: Context,
     private readonly config: ResolvedConfig,
   ) {
-    this.translator = new TranslationService(ctx, config)
+    const llm = ctx.get('llm') as TranslationRuntime['llm']
+    const translationRuntime: TranslationRuntime = {
+      ...llm === undefined ? {} : { llm },
+      get: (name) => ctx.get(name),
+      logger: ctx.logger,
+    }
+    this.translator = new TranslationService(translationRuntime, config)
   }
 
   /** Install listeners, routes, and disposal. */
