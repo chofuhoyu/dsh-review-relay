@@ -93,10 +93,11 @@ sandbox.fetch = async () => Response.json(config)
 moduleExports.apply(context)
 await new Promise(resolve => setTimeout(resolve, 0))
 
-if (registrations.length !== 1) throw new Error(`expected one chain registration, got ${registrations.length}`)
-const [registration] = registrations
-if (registration.options.name !== 'conversation.composer' || registration.options.priority !== 0) {
-  throw new Error('client bundle did not register the priority-0 composer entry')
+const registration = registrations.find(row => row.options.name === 'conversation.composer')
+if (registration === undefined) throw new Error('client bundle did not register the composer entry')
+if (registration.options.priority !== 0) throw new Error('client bundle composer entry is not priority 0')
+if (!registrations.some(row => row.options.name === 'shell.overlay' && row.options.id === 'review-relay.toast')) {
+  throw new Error('client bundle did not register the toast overlay')
 }
 if (typeof registration.options.select !== 'function') throw new Error('chain entry has no selector')
 const selected = registration.options.select({

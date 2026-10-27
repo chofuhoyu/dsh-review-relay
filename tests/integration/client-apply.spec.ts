@@ -78,10 +78,11 @@ describe('client apply', () => {
     const { ctx, registrations } = fakeContext()
     apply(ctx)
     await settle()
-    expect(registrations).toHaveLength(1)
-    const entry = registrations[0]!
-    expect(entry.options).toMatchObject({ name: 'conversation.composer', priority: 0, locale: NS })
-    const select = entry.options['select'] as (owner: { pendingInteraction: unknown }) => unknown
+    expect(registrations.some(entry => entry.options['name'] === 'shell.overlay' && entry.options['id'] === 'review-relay.toast')).toBe(true)
+    const entry = registrations.find(entry => entry.options['name'] === 'conversation.composer')
+    expect(entry).toBeDefined()
+    expect(entry!.options).toMatchObject({ name: 'conversation.composer', priority: 0, locale: NS })
+    const select = entry!.options['select'] as (owner: { pendingInteraction: unknown }) => unknown
     const review = select({
       pendingInteraction: {
         kind: 'approval',
@@ -96,7 +97,7 @@ describe('client apply', () => {
     })
     expect(review).toMatchObject({ review: { toolName: 'probe', reason: 'because' } })
     expect(select({ pendingInteraction: { kind: 'approval', key: 'approval:2', sessionId: 's', toolName: 'probe', callId: 'c', reason: 'ordinary', answerable: true, answer: async () => {} } })).toBeNull()
-    const inject = entry.options['inject'] as () => { config: PublicConfig; getLocale: () => string; resolveReason: (text: { en: string }) => string }
+    const inject = entry!.options['inject'] as () => { config: PublicConfig; getLocale: () => string; resolveReason: (text: { en: string }) => string }
     const injected = inject()
     expect(injected.config).toEqual(config)
     expect(injected.getLocale()).toBe('zh-CN')

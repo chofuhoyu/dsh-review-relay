@@ -6,6 +6,7 @@ import type { TranslationView } from '../shared/types.js'
 import type { ApprovalLike, MatchedApproval } from './select.js'
 import { forwardForced, forwardVisible, initialForward } from './select.js'
 import { fetchTranslation, submitNote } from './api.js'
+import { showRelayToast } from './toast.js'
 import type { PublicConfig } from '../shared/types.js'
 
 /** Injection seat supplied by the chain registration. */
@@ -181,8 +182,9 @@ export function ReviewRelayPanel(props: ReviewRelayPanelProps): ReactNode {
     setError(null)
     const noteText = withNote && noteVisible ? note : ''
     const forwardChoice = withNote && canForward && forward
+    const relayed = noteText.trim() !== '' || forwardChoice
     try {
-      if (noteText.trim() !== '' || forwardChoice) {
+      if (relayed) {
         const result = await submitNote({
           sessionId: approval.sessionId,
           callId: approval.callId ?? '',
@@ -197,6 +199,7 @@ export function ReviewRelayPanel(props: ReviewRelayPanelProps): ReactNode {
       }
       await approval.answer('rejected')
       setSettled(true)
+      if (relayed) showRelayToast(props.t('relayed'))
     } catch {
       setError({ code: 'approval-not-pending', message: '' })
       setSettled(!approval.answerable)

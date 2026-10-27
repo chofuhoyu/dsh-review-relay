@@ -92,6 +92,24 @@ export const STYLES = `
 .rr-error { color: var(--dsw-alias-label-error, #d64545); font-size: 12px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .rr-status { color: var(--dsw-alias-label-tertiary, #6b7280); font-size: 12px; }
 .rr-privacy { color: var(--dsw-alias-label-tertiary, #6b7280); font-size: 11px; }
+.rr-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 28px;
+  transform: translateX(-50%);
+  z-index: 2147483000;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 10px 14px;
+  border: 1px solid var(--dsw-alias-border-l2, #d8dde6);
+  border-radius: 10px;
+  background: var(--dsw-alias-bg-layer-1, #fff);
+  color: var(--dsw-alias-label-primary, #1d2129);
+  box-shadow: 0 8px 24px var(--dsw-alias-bg-mask-2, rgba(20, 30, 45, 0.16));
+  font-size: 13px;
+  line-height: 1.4;
+  pointer-events: none;
+}
+.rr-toast-error { color: var(--dsw-alias-label-error, #d64545); }
 .rr-command pre {
   margin: 0;
   padding: 8px 10px;

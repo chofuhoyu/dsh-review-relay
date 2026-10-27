@@ -1,8 +1,11 @@
 node_modules
 node_modules/
 .npm-cache/
+.pnpm-store/
+.pnpm-home/
+.xdg-data/
+.dsh-test-home/
 dist/
-lib/
 coverage/
 *.log
 .DS_Store
