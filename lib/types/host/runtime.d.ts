@@ -1,6 +1,14 @@
 /** Host runtime: observe review asks, collect the browser note, and deliver once. */
 import type { Context } from '@deepseek-ai/cordis';
+import type { DeliveryMode } from '../shared/types.js';
 import type { ResolvedConfig } from './config.js';
+/**
+ * Resolve how a prepared message enters the agent.
+ * @param status - live agent status at delivery time.
+ * @param configured - configured delivery mode.
+ * @returns `inject` while a turn is open, `followup` when the agent is idle.
+ */
+export declare function resolveDeliveryMode(status: string, configured: DeliveryMode): 'inject' | 'followup';
 /** Host-only relay runtime. */
 export declare class ReviewRelayRuntime {
     private readonly ctx;

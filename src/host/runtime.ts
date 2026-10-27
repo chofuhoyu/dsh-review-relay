@@ -4,7 +4,7 @@ import type { Agent } from '@deepseek-ai/dsh-agent'
 import type { Session, SessionEvent } from '@deepseek-ai/dsh-session'
 import type { ApprovalOutcome, ApprovalRequestEvent } from '@deepseek-ai/dsh-user-approval/types'
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
-import type { NoteRequest, PublicConfig, TranslationView } from '../shared/types.js'
+import type { DeliveryMode, NoteRequest, PublicConfig, TranslationView } from '../shared/types.js'
 import { buildRelayMessage } from '../shared/template.js'
 import { parseReviewAsk } from '../shared/parse.js'
 import type { ResolvedConfig } from './config.js'
@@ -56,6 +56,18 @@ interface ConnectionLike {
 
 /** How long an unanswered pending review is retained before pruning. */
 const PENDING_TTL_MS = 5 * 60 * 1000
+
+/**
+ * Resolve how a prepared message enters the agent.
+ * @param status - live agent status at delivery time.
+ * @param configured - configured delivery mode.
+ * @returns `inject` while a turn is open, `followup` when the agent is idle.
+ */
+export function resolveDeliveryMode(status: string, configured: DeliveryMode): 'inject' | 'followup' {
+  if (configured === 'inject') return 'inject'
+  if (configured === 'followup') return 'followup'
+  return status === 'idle' ? 'followup' : 'inject'
+}
 
 /** Host-only relay runtime. */
 export class ReviewRelayRuntime {
@@ -254,9 +266,7 @@ export class ReviewRelayRuntime {
       content: [{ type: 'text', text: delivery.text }],
       source: { kind: 'user' },
     })
-    const mode = this.config.delivery === 'auto'
-      ? delivery.agent.status === 'idle' ? 'followup' : 'inject'
-      : this.config.delivery
+    const mode = resolveDeliveryMode(delivery.agent.status, this.config.delivery)
     try {
       if (mode === 'followup') delivery.agent.followup(message)
       else delivery.agent.inject(message)

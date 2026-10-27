@@ -237,6 +237,14 @@ describe('host relay integration', () => {
       && event.data.content.some(block => block.type === 'text' && block.text.includes('不要删 build/')))).toBe(true)
   })
 
+  it('does not inject when the approval is cancelled', async () => {
+    const h = await harness({ onApproval: async () => 'cancelled' })
+    send(h.agent)
+    await waitForIdle(h.ctx, h.agent)
+    expect(injectedMessages(h.agent).filter(text => text.startsWith('User rejected tool'))).toHaveLength(0)
+    expect(h.runs()).toBe(0)
+  })
+
   it('does not inject when the user allows the call', async () => {
     const h = await harness({ onApproval: async () => 'allowed-once' })
     send(h.agent)
