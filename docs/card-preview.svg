@@ -25,7 +25,7 @@
     <text x="96" y="244" font-family="Inter, 'Segoe UI', 'Noto Sans CJK SC', sans-serif" font-size="12" fill="#6b7280">建议先确认是否还需要这些构建产物。</text>
     <text x="556" y="182" font-family="Inter, 'Segoe UI', 'Noto Sans CJK SC', sans-serif" font-size="12" fill="#247bbf">查看原文</text>
 
-    <text x="84" y="292" font-family="Inter, 'Segoe UI', 'Noto Sans CJK SC', sans-serif" font-size="12" font-weight="600" fill="#4b5563">说明（可选，会作为用户消息发送给正在工作的 agent）</text>
+    <text x="84" y="292" font-family="Inter, 'Segoe UI', 'Noto Sans CJK SC', sans-serif" font-size="12" font-weight="600" fill="#4b5563">说明（可选，会随被拒调用转交给 agent）</text>
     <rect x="84" y="304" width="592" height="56" rx="9" fill="#ffffff" stroke="#d8dde6"/>
     <text x="96" y="328" font-family="Inter, 'Segoe UI', 'Noto Sans CJK SC', sans-serif" font-size="13" fill="#1d2129">不要删 build/，改用 pnpm clean。</text>
     <text x="600" y="332" font-family="Inter, 'Segoe UI', 'Noto Sans CJK SC', sans-serif" font-size="12" fill="#6b7280">21 / 2000</text>
@@ -40,6 +40,6 @@
     <text x="574" y="425" font-family="Inter, 'Segoe UI', 'Noto Sans CJK SC', sans-serif" font-size="13" fill="#ffffff">拒绝并发送说明</text>
   </g>
   <rect x="238" y="456" width="284" height="34" rx="9" fill="#ffffff" stroke="#d8dde6"/>
-  <text x="380" y="478" text-anchor="middle" font-family="Inter, 'Segoe UI', 'Noto Sans CJK SC', sans-serif" font-size="12" fill="#1d2129">已拒绝，说明已转交给 agent</text>
+  <text x="380" y="478" text-anchor="middle" font-family="Inter, 'Segoe UI', 'Noto Sans CJK SC', sans-serif" font-size="12" fill="#1d2129">已拒绝，说明已转交</text>
   <text x="380" y="507" text-anchor="middle" font-family="Inter, 'Segoe UI', 'Noto Sans CJK SC', sans-serif" font-size="11" fill="#9aa3af">示意图，实际外观跟随 DSH 主题与界面语言</text>
 </svg>

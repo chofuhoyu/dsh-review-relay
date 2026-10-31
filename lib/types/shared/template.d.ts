@@ -1,8 +1,11 @@
 /**
- * Fixed injection template. The labels are English on purpose: the model sees
- * stable block names, while the note and reviewer text keep their own language.
+ * Relay text templates.
+ *
+ * The default path appends a block to the rejected tool call's own result, so
+ * the labels are English and stable for the model. The legacy path builds a
+ * standalone user message; it is kept for `delivery: 'inject' | 'followup'`.
  */
-/** Inputs for one relay message. */
+/** Inputs for one relay text. */
 export interface RelayTemplateInput {
     readonly toolName: string;
     readonly note?: string | undefined;
@@ -25,7 +28,16 @@ export interface TruncatedReason {
  */
 export declare function truncateReviewerReason(reason: string, max: number): TruncatedReason;
 /**
- * Render the fixed relay message, omitting every empty block.
+ * Render the blocks appended to a rejected tool result. The result's own
+ * `Error: the user rejected tool "..."` line already states the decision, so
+ * this text carries only the note, the reviewer reason, and the translation.
+ * @param input - tool name, optional note, optional reviewer text, optional translation.
+ * @returns the appended text, or undefined when there is nothing to relay.
+ */
+export declare function buildToolResultRelay(input: RelayTemplateInput): string | undefined;
+/**
+ * Render the legacy synthetic user message used by `delivery: 'inject'` and
+ * `delivery: 'followup'`.
  * @param input - tool name, optional note, optional reviewer text, optional translation.
  * @returns the message text, or undefined when there is nothing to relay.
  */

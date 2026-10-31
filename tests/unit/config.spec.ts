@@ -39,7 +39,7 @@ describe('config validation', () => {
       showOriginal: true,
       translationProvider: 'llm',
       translationTimeoutMs: 10000,
-      delivery: 'auto',
+      delivery: 'tool-result',
       forwardOnDirectDeny: false,
     })
     expect(config.pattern).toBeInstanceOf(RegExp)
@@ -63,7 +63,7 @@ describe('config validation', () => {
 
   it('rejects invalid enums and language tags', () => {
     expect(() => resolveConfig({ forwardMode: 'sometimes' as 'ask' })).toThrow()
-    expect(() => resolveConfig({ delivery: 'later' as 'auto' })).toThrow()
+    expect(() => resolveConfig({ delivery: 'later' as 'tool-result' })).toThrow()
     expect(() => resolveConfig({ targetLanguage: 'not a tag' })).toThrow(/BCP-47/)
   })
 
@@ -75,7 +75,7 @@ describe('config validation', () => {
     for (const forwardMode of ['ask', 'always', 'never'] as const) {
       expect(resolveConfig({ forwardMode }).forwardMode).toBe(forwardMode)
     }
-    for (const delivery of ['auto', 'inject', 'followup'] as const) {
+    for (const delivery of ['tool-result', 'auto', 'inject', 'followup'] as const) {
       expect(resolveConfig({ delivery }).delivery).toBe(delivery)
     }
     for (const translationProvider of ['llm', 'translator', 'off'] as const) {

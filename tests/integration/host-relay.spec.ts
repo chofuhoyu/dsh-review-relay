@@ -5,6 +5,7 @@ import {
   LlmAdapter,
   ToolCallId,
   createUserMessage,
+  type ContentBlock,
   type GenerateOptions,
   type StreamChunk,
 } from '@deepseek-ai/dsh-llm'
@@ -20,6 +21,7 @@ import * as ReviewRelay from '../../src/index.js'
 import { TRANSLATION_SYSTEM_PROMPT } from '../../src/host/translate.js'
 
 type Route = { fetch(request: Request): Promise<Response> }
+type ToolResultEvent = Extract<SessionEvent, { type: 'tool/result' }>
 
 interface HarnessOptions {
   readonly config?: Record<string, unknown>
@@ -159,12 +161,30 @@ function waitForIdle(ctx: Context, agent: Agent): Promise<void> {
   })
 }
 
-function injectedMessages(agent: Agent): string[] {
+function userTexts(agent: Agent): string[] {
   return agent.session.snapshotEvents()
     .filter((event): event is Extract<SessionEvent, { type: 'user/message' }> => event.type === 'user/message')
     .filter(event => event.data.source.kind === 'user')
     .flatMap(event => event.data.content)
     .flatMap(block => block.type === 'text' ? [block.text] : [])
+}
+
+function toolResults(agent: Agent): ToolResultEvent[] {
+  return agent.session.snapshotEvents()
+    .filter((event): event is ToolResultEvent => event.type === 'tool/result')
+}
+
+function toolResultContent(agent: Agent, callId = 'call-1'): readonly ContentBlock[] {
+  const event = toolResults(agent).find(candidate => String(candidate.data.message.toolCallId) === callId)
+  return event?.data.message.content ?? []
+}
+
+/** Text blocks this plugin appended to tool results, in log order. */
+function relayTexts(agent: Agent): string[] {
+  return toolResults(agent)
+    .flatMap(event => event.data.message.content)
+    .flatMap(block => block.type === 'text' ? [block.text] : [])
+    .filter(text => text.startsWith('User note:') || text.startsWith('Reviewer reason'))
 }
 
 async function configOf(routes: Map<string, Route>, locale = 'zh-CN') {
@@ -189,8 +209,16 @@ async function postNote(
   }))
 }
 
+async function deliveryOf(routes: Map<string, Route>, sessionId: string, callId: string): Promise<Response> {
+  const route = routes.get('/api/review-relay/delivery')
+  if (route === undefined) throw new Error('delivery route missing')
+  return await route.fetch(new Request(
+    `http://localhost/api/review-relay/delivery?sessionId=${encodeURIComponent(sessionId)}&callId=${encodeURIComponent(callId)}`,
+  ))
+}
+
 describe('host relay integration', () => {
-  it('collects a note and relays note + verbatim reason + translation exactly once', async () => {
+  it('attaches note + verbatim reason + translation to the rejected tool result exactly once', async () => {
     const h = await harness({
       onApproval: async ({ sessionId, callId }) => {
         const response = await postNote(h.routes, {
@@ -219,95 +247,94 @@ describe('host relay integration', () => {
     send(h.agent)
     await waitForIdle(h.ctx, h.agent)
 
-    const messages = injectedMessages(h.agent).filter(text => text.startsWith('User rejected tool'))
-    expect(messages).toHaveLength(1)
-    expect(messages[0]).toBe([
-      'User rejected tool "probe".',
-      'User note:\n不要删 build/，改用 pnpm clean。',
-      'Reviewer reason (verbatim):\nirreversible delete of build/',
-      'Reviewer reason (translated to zh-CN):\n删除构建目录',
-    ].join('\n\n'))
-
-    const result = h.agent.session.snapshotEvents().find(event => event.type === 'tool/result')
-    expect(result?.type === 'tool/result' ? result.data.message.content : []).toEqual([
-      { type: 'text', text: 'Error: the user rejected tool "probe"' },
+    expect(relayTexts(h.agent)).toEqual([
+      [
+        'User note:\n不要删 build/，改用 pnpm clean。',
+        'Reviewer reason (verbatim):\nirreversible delete of build/',
+        'Reviewer reason (translated to zh-CN):\n删除构建目录',
+      ].join('\n\n'),
     ])
+    expect(userTexts(h.agent)).toEqual(['go'])
+    expect(toolResultContent(h.agent)[0]).toEqual({ type: 'text', text: 'Error: the user rejected tool "probe"' })
     expect(h.runs()).toBe(0)
     expect(h.adapter.translationCalls).toBe(1)
-    const deliveryRoute = h.routes.get('/api/review-relay/delivery')
-    expect(deliveryRoute).toBeDefined()
-    const delivery = await deliveryRoute!.fetch(new Request(
-      `http://localhost/api/review-relay/delivery?sessionId=integration&callId=call-1`,
-    ))
+
+    const delivery = await deliveryOf(h.routes, 'integration', 'call-1')
     expect(delivery.status).toBe(200)
     expect(await delivery.json()).toEqual({ state: 'delivered' })
 
-    // Cold load: serialize the exact log, parse it, and reconstruct the session.
+    // Cold load: the note is part of the tool result, not a synthetic message.
     const events = h.agent.session.snapshotEvents()
     for (const event of events) expect(KNOWN_SESSION_EVENT_TYPES.has(event.type)).toBe(true)
     const encoded = events.map(event => JSON.stringify(event)).join('\n')
     const decoded = encoded.split('\n').map(line => JSON.parse(line) as SessionEvent)
     const restored = Session.create(SessionId('cold'), decoded)
+    expect(restored.snapshotEvents().some(event => event.type === 'tool/result'
+      && event.data.message.content.some(block => block.type === 'text' && block.text.includes('不要删 build/')))).toBe(true)
     expect(restored.snapshotEvents().some(event => event.type === 'user/message'
-      && event.data.content.some(block => block.type === 'text' && block.text.includes('不要删 build/')))).toBe(true)
+      && event.data.content.some(block => block.type === 'text' && block.text.includes('不要删 build/')))).toBe(false)
   })
 
-  it('does not inject when the approval is cancelled', async () => {
+  it('does not attach anything when the approval is cancelled', async () => {
     const h = await harness({ onApproval: async () => 'cancelled' })
     send(h.agent)
     await waitForIdle(h.ctx, h.agent)
-    expect(injectedMessages(h.agent).filter(text => text.startsWith('User rejected tool'))).toHaveLength(0)
+    expect(relayTexts(h.agent)).toEqual([])
+    expect(userTexts(h.agent)).toEqual(['go'])
     expect(h.runs()).toBe(0)
   })
 
-  it('does not inject when the user allows the call', async () => {
+  it('does not attach anything when the user allows the call', async () => {
     const h = await harness({ onApproval: async () => 'allowed-once' })
     send(h.agent)
     await waitForIdle(h.ctx, h.agent)
-    expect(injectedMessages(h.agent).filter(text => text.startsWith('User rejected tool'))).toHaveLength(0)
+    expect(relayTexts(h.agent)).toEqual([])
+    expect(userTexts(h.agent)).toEqual(['go'])
     expect(h.runs()).toBe(1)
   })
 
-  it('relays a direct final denial when forwardOnDirectDeny is enabled', async () => {
+  it('attaches a direct final denial reason when forwardOnDirectDeny is enabled', async () => {
     const h = await harness({
       config: { forwardOnDirectDeny: true, translate: false },
       directDeny: 'sensitive exfiltration is never allowed',
     })
     send(h.agent)
     await waitForIdle(h.ctx, h.agent)
-    const messages = injectedMessages(h.agent).filter(text => text.startsWith('Auto review rejected tool'))
-    expect(messages).toEqual([
-      'Auto review rejected tool "probe".\n\nReviewer reason (verbatim):\nsensitive exfiltration is never allowed',
+    expect(relayTexts(h.agent)).toEqual([
+      'Reviewer reason (verbatim):\nsensitive exfiltration is never allowed',
     ])
+    expect(userTexts(h.agent)).toEqual(['go'])
     expect(h.runs()).toBe(0)
   })
 
-  it('does not relay a direct final denial by default', async () => {
+  it('does not attach a direct final denial by default', async () => {
     const h = await harness({
       config: { translate: false },
       directDeny: 'sensitive exfiltration is never allowed',
     })
     send(h.agent)
     await waitForIdle(h.ctx, h.agent)
-    expect(injectedMessages(h.agent).filter(text => text.startsWith('Auto review rejected tool'))).toHaveLength(0)
+    expect(relayTexts(h.agent)).toEqual([])
+    expect(userTexts(h.agent)).toEqual(['go'])
   })
 
-  it('relays only the reviewer reason under forwardMode always (M1 host-only path)', async () => {
+  it('attaches only the reviewer reason under forwardMode always (M1 host-only path)', async () => {
     const h = await harness({ config: { forwardMode: 'always', translate: false } })
     send(h.agent)
     await waitForIdle(h.ctx, h.agent)
-    const messages = injectedMessages(h.agent).filter(text => text.startsWith('User rejected tool'))
-    expect(messages).toEqual([
-      'User rejected tool "probe".\n\nReviewer reason (verbatim):\nirreversible delete of build/',
+    expect(relayTexts(h.agent)).toEqual([
+      'Reviewer reason (verbatim):\nirreversible delete of build/',
     ])
+    expect(userTexts(h.agent)).toEqual(['go'])
     expect(h.adapter.translationCalls).toBe(0)
   })
 
-  it('does not relay under forwardMode ask when the official card supplied no note', async () => {
+  it('does not attach under forwardMode ask when the official card supplied no note', async () => {
     const h = await harness({ config: { forwardMode: 'ask', translate: false } })
     send(h.agent)
     await waitForIdle(h.ctx, h.agent)
-    expect(injectedMessages(h.agent).filter(text => text.startsWith('User rejected tool'))).toHaveLength(0)
+    expect(relayTexts(h.agent)).toEqual([])
+    expect(userTexts(h.agent)).toEqual(['go'])
   })
 
   it('falls back to the verbatim reason when translation fails', async () => {
@@ -333,10 +360,9 @@ describe('host relay integration', () => {
     })
     send(h.agent)
     await waitForIdle(h.ctx, h.agent)
-    const messages = injectedMessages(h.agent).filter(text => text.startsWith('User rejected tool'))
-    expect(messages).toHaveLength(1)
-    expect(messages[0]).toContain('Reviewer reason (verbatim):\nirreversible delete of build/')
-    expect(messages[0]).not.toContain('Reviewer reason (translated')
+    expect(relayTexts(h.agent)).toHaveLength(1)
+    expect(relayTexts(h.agent)[0]).toContain('Reviewer reason (verbatim):\nirreversible delete of build/')
+    expect(relayTexts(h.agent)[0]).not.toContain('Reviewer reason (translated')
   })
 
   it('skips translation for an already-Chinese reviewer reason', async () => {
@@ -364,12 +390,11 @@ describe('host relay integration', () => {
     send(h.agent)
     await waitForIdle(h.ctx, h.agent)
     expect(h.adapter.translationCalls).toBe(0)
-    const messages = injectedMessages(h.agent).filter(text => text.startsWith('User rejected tool'))
-    expect(messages[0]).toContain('该命令会删除 build/ 下的产物。')
-    expect(messages[0]).not.toContain('Reviewer reason (translated')
+    expect(relayTexts(h.agent)[0]).toContain('该命令会删除 build/ 下的产物。')
+    expect(relayTexts(h.agent)[0]).not.toContain('Reviewer reason (translated')
   })
 
-  it('relays at most once when the same call id is replayed', async () => {
+  it('attaches at most once when the same call id is replayed', async () => {
     const h = await harness({
       config: { forwardMode: 'always', translate: false },
       adapterMode: 'repeat',
@@ -378,12 +403,11 @@ describe('host relay integration', () => {
     await waitForIdle(h.ctx, h.agent)
     send(h.agent)
     await waitForIdle(h.ctx, h.agent)
-    const messages = injectedMessages(h.agent).filter(text => text.startsWith('User rejected tool'))
-    expect(messages).toHaveLength(1)
+    expect(relayTexts(h.agent)).toHaveLength(1)
     expect(h.adapter.main).toBe(4)
   })
 
-  it('sends the note alone when forwardMode is never', async () => {
+  it('attaches the note alone when forwardMode is never', async () => {
     const h = await harness({
       config: { forwardMode: 'never' },
       onApproval: async ({ sessionId, callId }) => {
@@ -399,8 +423,7 @@ describe('host relay integration', () => {
     })
     send(h.agent)
     await waitForIdle(h.ctx, h.agent)
-    const messages = injectedMessages(h.agent).filter(text => text.startsWith('User rejected tool'))
-    expect(messages).toEqual(['User rejected tool "probe".\n\nUser note:\nuse pnpm clean'])
+    expect(relayTexts(h.agent)).toEqual(['User note:\nuse pnpm clean'])
   })
 
   it('supports notes on ordinary approvals when opted in', async () => {
@@ -420,8 +443,20 @@ describe('host relay integration', () => {
     })
     send(h.agent)
     await waitForIdle(h.ctx, h.agent)
-    const messages = injectedMessages(h.agent).filter(text => text.startsWith('User rejected tool'))
-    expect(messages).toEqual(['User rejected tool "probe".\n\nUser note:\ngo ahead, but only once'])
+    expect(relayTexts(h.agent)).toEqual(['User note:\ngo ahead, but only once'])
+  })
+
+  it('keeps the legacy synthetic user message behind delivery: inject', async () => {
+    const h = await harness({
+      config: { delivery: 'inject', forwardMode: 'always', translate: false },
+    })
+    send(h.agent)
+    await waitForIdle(h.ctx, h.agent)
+    expect(relayTexts(h.agent)).toEqual([])
+    expect(userTexts(h.agent)).toEqual([
+      'go',
+      'User rejected tool "probe".\n\nReviewer reason (verbatim):\nirreversible delete of build/',
+    ])
   })
 
   it('validates the note endpoint', async () => {

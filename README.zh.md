@@ -2,7 +2,7 @@
 
 把 DeepSeek Harness **Auto review** 的拒绝意见，连同你在拒绝时写下的说明，可靠地送进正在工作的 agent 上下文；审查意见以中文展示，原文逐字保留。
 
-> 状态：`0.1.0`，目前只通过 GitHub 分发，**未发布到 npm**。目标运行时 DSH `0.2.x`，开发基线 `0.2.1-rc.2`。
+> 状态：`0.2.0`，目前只通过 GitHub 分发，**未发布到 npm**。目标运行时 DSH `0.2.x`，开发基线 `0.2.1-rc.2`。
 
 ![审批卡片示意](docs/card-preview.svg)
 
@@ -15,7 +15,13 @@ Auto review 判 deny、审批策略为 `ask` 时，官方卡片会把 reviewer �
 3. 用户想补一句“不要删 build/，改用 pnpm clean”，只能等拒绝后再单独发消息，和当时的上下文对不上；
 4. reviewer 意见是英文，中文用户读起来费劲。
 
-本插件只做三件事：**展示、附言、转交**。它不参与 allow/deny 判定，不接管审批语义，也不修改工具参数或结果。
+本插件只做三件事：**展示、附言、转交**。它不参与 allow/deny 判定，不接管审批语义，也不修改工具参数。默认路径不会新建一条用户消息，而是把转交块追加到被拒工具调用的 `tool/result` 内容里。
+
+### 为什么转交块放在工具结果里
+
+审批结果本身没有“附言”字段：`ApprovalOutcome` 只有 `allowed-once | rejected | cancelled | unavailable`，Host 插件无法通过审批结果把附言带过去。旧实现用 `agent.inject()` 绕开这个限制，但 `inject()` 写入的是一条真正的 `user/message`，Web UI 会把它渲染成普通用户发言，模型也会按用户消息的优先级处理。
+
+现在的默认实现改在 `tools/post-execute` 里给被拒调用补一个文本块。审批被拒仍然会产生一个工具结果，插件在它落盘前追加附言和审查意见即可。这样模型看到的是 bash / 工具结果的一部分（和 `ask_user_question` 的答案位置相同），主对话里不会再出现一条伪用户消息。需要旧行为时显式配置 `delivery: 'inject'` 或 `'followup'`。
 
 ## 安装
 
@@ -50,10 +56,25 @@ Auto review 判 deny 并弹出审批卡片时，本插件会用一张同位置�
 - 可选填写说明（默认上限 2000 字，带计数器）；
 - “一并转交审查意见原文”默认勾选；
 - “允许一次”与“拒绝并发送说明”；
-- 拒绝且说明/转交都为空时，等同于普通拒绝，不注入任何内容；
-- 允许一次不会提交说明，也不会注入。
+- 拒绝且说明/转交都为空时，等同于普通拒绝，不转交任何内容；
+- 允许一次不会提交说明，也不会转交。
 
-拒绝成功后，工作 agent 会在下一次模型请求前收到一条 user 消息，格式固定：
+拒绝成功后，被拒工具结果会在落盘前多出一个文本块：
+
+```text
+User note:
+<note>
+
+Reviewer reason (verbatim):
+<reviewer reason>
+
+Reviewer reason (translated to <targetLanguage>):
+<translation>
+```
+
+工具结果自身的 `Error: the user rejected tool "<toolName>"` 已经表达了拒绝，所以不再重复。空块会被省略；reviewer 原文逐字保留（超过 `maxForwardChars` 时显式截断并标记）。转交块属于工具结果，展开该工具行即可看到，不会作为单独的用户消息出现在主对话里。
+
+使用 `delivery: 'inject'` 或 `'followup'` 时，旧模板仍是一条独立的用户消息：
 
 ```text
 User rejected tool "<toolName>".
@@ -67,8 +88,6 @@ Reviewer reason (verbatim):
 Reviewer reason (translated to <targetLanguage>):
 <translation>
 ```
-
-空块会被省略；reviewer 原文逐字保留（超过 `maxForwardChars` 时显式截断并标记）。
 
 ## 配置
 
@@ -87,7 +106,7 @@ Reviewer reason (translated to <targetLanguage>):
     noteEnabled: true
     noteMaxChars: 2000
     maxForwardChars: 8000
-    delivery: auto
+    delivery: tool-result
 ```
 
 | 字段 | 类型 | 默认 | 说明 |
@@ -107,8 +126,8 @@ Reviewer reason (translated to <targetLanguage>):
 | `translationProvider` | `'llm' \| 'translator' \| 'off'` | `'llm'` | `llm` 用当前会话 provider/model 做一次独立请求；`translator` 优先用宿主 `ctx.translator`，没有则降级 `llm`；`off` 关闭。 |
 | `translationModel` | string（可选） | 当前会话模型 | 指定翻译模型。 |
 | `translationTimeoutMs` | number | `10000` | 翻译超时，100–120000。 |
-| `delivery` | `'auto' \| 'inject' \| 'followup'` | `'auto'` | `auto` 有打开回合用 `inject`，空闲用 `followup`。 |
-| `forwardOnDirectDeny` | boolean | `false` | 直接拒绝（无 ask，如 high 风险 / `never` 策略）也把 reviewer 理由作为一条额外 user 消息转交；这条路径没有卡片，只转原文。 |
+| `delivery` | `'tool-result' \| 'auto' \| 'inject' \| 'followup'` | `'tool-result'` | `tool-result` 把转交块追加到被拒工具结果（不产生用户消息）；`auto` 是兼容别名；`inject` / `followup` 是旧的合成用户消息模式。 |
+| `forwardOnDirectDeny` | boolean | `false` | 直接拒绝（无 ask，如 high 风险 / `never` 策略）也把 reviewer 理由转交；这条路径没有卡片，只转原文。 |
 
 默认识别规则（匹配 `0.2.1-rc.2` 的真实 ask 文案）：
 
@@ -122,23 +141,24 @@ Reviewer reason (translated to <targetLanguage>):
 
 - **翻译是数据外发。** 默认 `translationProvider: llm` 会把 **reviewer reason**（不含会话内容、不含工具参数、不含附言）发送给当前会话的模型 provider。设为 `translate: false` 或 `translationProvider: off` 可完全关闭。
 - `translationProvider: translator` 只在宿主安装并提供官方 `ctx.translator` 时使用；该服务可能走匿名 Bing / Google 端点，需你显式选择。探测不到时自动降级到 `llm`。
-- 附言只存在 Host 进程内存，审批结算后清除；不落 Session，不持久化。
+- 附言只存在 Host 进程内存，审批结算前使用；默认路径转交后会成为 `tool/result` 内容的一部分，旧路径则写入 `user/message`。
 - 去重集合、翻译缓存同样只在内存，进程退出即丢。
 - 插件**不写任何自定义 Session 事件**，也不调用 `appendPluginRecord`。模型可见内容来自：
   - `approval/asked.reason`（Host 已有）；
   - `approval/decided.outcome`（Host 已有）；
-  - `inject()` 产生的既有 `agent/inbox/spliced` / `user/message`（Host 已有）。
+  - 既有的 `tool/result` 内容（默认路径在 `tools/post-execute` 中追加）；
+  - `inject()` 产生的既有 `agent/inbox/spliced` / `user/message`（旧模式）。
 - 调试日志走 Host logger，不打印 reviewer 原文或附言正文。
 
 ## 安全边界
 
 - 插件只**观察** `approval/request`，`await next()` 后原样返回 outcome；从不返回自己的决定。
 - UI 不可用、配置端点不可用、正则非法、没有 `callId`、面板崩溃：都退回官方审批卡片或完全委托，绝不自动放行。
-- 允许一次：不提交附言、不注入。
-- 拒绝但说明/转交为空：不注入。
-- 取消 / 超时 / 会话关闭：不注入。
-- 注入失败：审批仍然是拒绝，最多重试一次，写 Host 警告日志，并通过 6 秒投递状态轮询显示错误 toast；不会重试风暴。
-- 跨会话：只注入 `approval/request` 带来的同一个 agent / session。
+- 允许一次：不提交附言、不转交。
+- 拒绝但说明/转交为空：不转交。
+- 取消 / 超时 / 会话关闭：不转交。
+- 转交失败：审批仍然是拒绝，写 Host 警告日志，并通过 6 秒投递状态轮询显示错误 toast。
+- 跨会话：只 enrich `approval/request` 带来的同一个 agent / session 所拥有的工具结果。
 - 去重：`(sessionId, callId)`；`callId` 缺失时用 `(sessionId, toolName, reason 哈希)` 兜底。
 
 ## 失败与降级
@@ -146,12 +166,12 @@ Reviewer reason (translated to <targetLanguage>):
 | 场景 | 行为 |
 |---|---|
 | 非审查审批 | 完全委托官方卡片。 |
-| auto-review 未安装 / 文案不匹配 | 不接管、不注入。 |
+| auto-review 未安装 / 文案不匹配 | 不接管、不转交。 |
 | Client 未连接 / config 端点失败 | 官方卡片；没有附言可转交；`forwardMode: always` 时仍只转交审查意见。 |
 | 附言 POST 失败 | 卡片保持打开，显示错误；可重试或“不带说明直接拒绝”。 |
-| 翻译超时 / 失败 | 显示原文 + 提示；拒绝照常；不注入空译文块。 |
-| 注入失败 | 审批仍是拒绝；Host 日志 + 卡片关闭后 6 秒内的错误 toast；最多一次重试。 |
-| 审批取消 / 会话关闭 | 不注入，清理状态。 |
+| 翻译超时 / 失败 | 显示原文 + 提示；拒绝照常；不添加空译文块。 |
+| post-execute 不可用 / 调用未结算 | 不追加；Host 警告，已知 `callId` 时 6 秒内显示错误 toast。 |
+| 审批取消 / 会话关闭 | 不转交，清理状态。 |
 | 重复提交 / 重放 | 按审批 id / callId 去重，恰好一次。 |
 | 超长附言 / 审查意见 | 附言超限阻止提交；审查意见按配置截断并显式标记。 |
 | 面板崩溃 | 主动 dispose 本插件 chain entry，链重新选举，官方 priority-1 卡片接上。 |
@@ -160,9 +180,11 @@ Reviewer reason (translated to <targetLanguage>):
 
 - **不承诺让 reviewer 输出中文。** reviewer prompt 在 auto-review 包里；本插件只翻译展示和转交。
 - **`conversation.approval.detail` 子槽不能复用。** 该槽由官方 `ui-approval` entry 声明，第二个 chain entry 再声明会抛错。本插件不声明它，而是用 `useChat` 标准 prop 自己渲染关联命令；`0.2.1-rc.2` 的官方详情本来也只渲染命令，没有 diff。
-- **注入失败提示有 6 秒窗口。** 卡片关闭后客户端会短轮询 `api/review-relay/delivery`；超过窗口的失败只写 Host 日志。审批结果不受影响。
-- **翻译来不及就只转原文。** 翻译在卡片出现时并行开始；用户拒绝时若译文尚未就绪，转交消息只含原文块，不阻塞拒绝、不注入半截译文。
-- **没有 `callId` 的审批不接管卡片**，因为附言和翻译端点都以 `callId` 寻址；Host-only 的 `forwardMode: always` 仍可转交原文。
+- **转交失败提示有 6 秒窗口。** 卡片关闭后客户端会短轮询 `api/review-relay/delivery`；超过窗口的失败只写 Host 日志。审批结果不受影响。
+- **转交块在工具结果内部。** 展开被拒工具行才能看到，不是独立对话气泡。这是刻意设计：附言的优先级低于用户回合，也不应占据主对话。
+- **翻译来不及就只转原文。** 翻译在卡片出现时并行开始；用户拒绝时若译文尚未就绪，转交块只含原文块，不阻塞拒绝、不添加半截译文。
+- **没有 `callId` 的审批不接管卡片**，因为附言和翻译端点都以 `callId` 寻址；Host-only 的 `forwardMode: always` 仍可把原文匹配到同 session/tool 的下一个被拒结果。
+- **旧模式需显式开启。** `delivery: 'inject'` / `'followup'` 仍会创建合成用户消息，因此仍会出现旧的主对话气泡。
 - **prepend 是“在已有监听器之前”**；如果未来有插件再 prepend 并短路审批链，本插件可能观察不到。目标组合中 ui-approval / ACP 都是普通监听器。
 
 AC-1 … AC-14 的点击验收清单见 [doc/manual-e2e.md](doc/manual-e2e.md)。

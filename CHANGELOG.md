@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.0 — 2026-10-31
+
+- **Default relay target is now the rejected tool result, not a synthetic user message.** The Host enriches the denied call through `tools/post-execute`; the note and reviewer reason become a text block on `tool/result`. The model sees them at tool priority and the Web UI no longer shows an extra user bubble in the main conversation.
+- `delivery` defaults to `'tool-result'`. `'auto'` is a deprecated alias; `'inject'` and `'followup'` keep the legacy synthetic-user-message behavior.
+- Direct final denials (`forwardOnDirectDeny: true`) use the same tool-result path by default.
+- Delivery status now reports whether the tool result was enriched; the 6-second watcher and error toast are unchanged.
+- The relay template no longer repeats `User rejected tool "<toolName>".` on the tool-result path; the tool result's own rejection line already states it.
+- Card copy no longer promises a user message; it says the note is relayed with the rejected call.
+- Added `@deepseek-ai/dsh-tools` to peer dependencies for the `PostToolDecision` / `ToolExecution` types.
+
 ## 0.1.0 — 2026-10-27
 
 Initial release.

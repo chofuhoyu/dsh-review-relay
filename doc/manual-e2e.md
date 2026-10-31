@@ -24,18 +24,18 @@ log for failures.
 | # | Step | Expected |
 |---|---|---|
 | AC-1 | Card appears | Chinese translation visible; “Show original” reveals the English reason; note textarea present. |
-| AC-2 | Reject with empty note, uncheck forwarding | No extra user message; tool result is still `the user rejected tool ...`. |
-| AC-3 | Type “不要删 build/，改用 pnpm clean”, reject | Next agent context contains one user message with that note before the next request; tool result remains rejection. |
-| AC-4 | Keep forwarding checked, reject | The relayed message contains the reviewer reason verbatim (compare with `approval/asked.reason`). |
-| AC-5 | Configure a very short `translationTimeoutMs` (or an invalid translation route), reject | Card stays usable; original + “translation failed”; relayed message has the original block only. |
+| AC-2 | Reject with empty note, uncheck forwarding | No extra text in the tool result; it is still just `Error: the user rejected tool ...`; no user message. |
+| AC-3 | Type “不要删 build/，改用 pnpm clean”, reject | The denied tool result contains one appended block with that note; no user message; the result remains an error. |
+| AC-4 | Keep forwarding checked, reject | The appended tool-result block contains the reviewer reason verbatim (compare with `approval/asked.reason`). |
+| AC-5 | Configure a very short `translationTimeoutMs` (or an invalid translation route), reject | Card stays usable; original + “translation failed”; the appended block has the original reason only. |
 | AC-6 | Use a Chinese reviewer reason (custom pattern / fixture) | No translation request; the original Chinese reason is shown and relayed. |
-| AC-7 | Disable Auto review, trigger an ordinary bash approval | Official card unchanged; no plugin injection or error. |
+| AC-7 | Disable Auto review, trigger an ordinary bash approval | Official card unchanged; no plugin relay or error. |
 | AC-8 | Close all Web clients, trigger a review ask | Official/fallback path completes; approval does not hang. |
-| AC-9 | After a rejection, restart Host and reopen the session | Session loads; no unknown-event error; injected user message is present. |
-| AC-10 | Replay/duplicate the same reject (or reload before answering) | At most one relayed user message for the call. |
-| AC-11 | Click Allow once | No user message injected; note (if typed) discarded. |
-| AC-12 | Reject when the agent has already gone idle | The notice is delivered via follow-up, not lost. |
-| AC-13 | Switch UI language zh ↔ en | All card copy switches; injected template labels stay English by contract. |
+| AC-9 | After a rejection, restart Host and reopen the session | Session loads; no unknown-event error; the appended block is still in the tool result. |
+| AC-10 | Replay/duplicate the same reject (or reload before answering) | At most one appended relay block for the call. |
+| AC-11 | Click Allow once | No relay block added; note (if typed) discarded. |
+| AC-12 | Reject when the agent has already gone idle | The relay block is part of the tool result and is present when the agent next runs. |
+| AC-13 | Switch UI language zh ↔ en | All card copy switches; relay template labels stay English by contract. |
 | AC-14 | Paste a note longer than `noteMaxChars` | Counter/error visible; reject action blocked for the note form; explicit “Reject without a note” remains available after a submit error. |
 
 ## Additional checks
@@ -50,10 +50,12 @@ log for failures.
 - Break the panel intentionally (e.g. malformed `displayReason`): the plugin
   should dispose its chain entry and the official card should appear.
 - Configure `forwardOnDirectDeny: true` and trigger a high-risk direct denial:
-  the agent receives one extra user message with the structured reviewer reason.
+  the denied tool result gains a block with the structured reviewer reason (no extra user message).
 - Inspect `GET /api/review-relay/delivery?sessionId=…&callId=…` after a reject:
   it should move from `pending` to `delivered`; a forced failure should show the
   error toast within the six-second watch window.
+- Set `delivery: inject` (legacy) and repeat AC-3: the old standalone user
+  message should appear instead of the tool-result block.
 
 ## Privacy check
 

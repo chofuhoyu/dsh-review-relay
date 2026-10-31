@@ -1,11 +1,12 @@
-/** Host runtime: observe review asks, collect the browser note, and deliver once. */
+/** Host runtime: observe review asks, collect the browser note, and attach it once. */
 import type { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import type { Session, SessionEvent, SessionId } from '@deepseek-ai/dsh-session'
+import type { PostToolDecision, ToolExecution, ToolExecutionResult } from '@deepseek-ai/dsh-tools'
 import type { ApprovalOutcome, ApprovalRequestEvent } from '@deepseek-ai/dsh-user-approval/types'
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
 import type { DeliveryMode, PublicConfig, TranslationView } from '../shared/types.js'
-import { buildRelayMessage, truncateReviewerReason } from '../shared/template.js'
+import { buildRelayMessage, buildToolResultRelay, truncateReviewerReason } from '../shared/template.js'
 import { parseReviewAsk } from '../shared/parse.js'
 import type { ResolvedConfig } from './config.js'
 import { normalizeLocale, publicConfig, resolveTargetLanguage } from './config.js'
@@ -34,7 +35,7 @@ interface PendingReview {
 /** Delivery state exposed to the browser after a rejection. */
 export type DeliveryState = 'pending' | 'delivered' | 'failed'
 
-/** One prepared message waiting for its committed tool result. */
+/** One prepared message waiting for its committed tool result (legacy modes). */
 interface PendingDelivery {
   readonly agent: Agent
   readonly sessionId: string
@@ -42,6 +43,18 @@ interface PendingDelivery {
   readonly text: string
   readonly at: number
 }
+
+/** One prepared relay waiting to be appended to a rejected tool result. */
+interface PendingEnrichment {
+  readonly sessionId: string
+  readonly callId: string | undefined
+  readonly toolName: string
+  readonly text: string
+  readonly at: number
+}
+
+/** Concrete delivery destination after resolving the configured mode. */
+export type DeliveryTarget = 'tool-result' | 'inject' | 'followup'
 
 /** Structural lookup for the optional agent registry. */
 interface AgentLookup {
@@ -66,15 +79,27 @@ interface ConnectionLike {
 const PENDING_TTL_MS = 60 * 60 * 1000
 
 /**
- * Resolve how a prepared message enters the agent.
- * @param status - live agent status at delivery time.
+ * Resolve where a prepared relay text goes.
+ *
+ * `tool-result` appends to the rejected call's own result. `auto` is kept as a
+ * deprecated alias for that default. `inject` and `followup` preserve the
+ * legacy synthetic-user-message behavior.
  * @param configured - configured delivery mode.
- * @returns `inject` while a turn is open, `followup` when the agent is idle.
+ * @returns the concrete destination.
  */
-export function resolveDeliveryMode(status: string, configured: DeliveryMode): 'inject' | 'followup' {
-  if (configured === 'inject') return 'inject'
-  if (configured === 'followup') return 'followup'
-  return status === 'idle' ? 'followup' : 'inject'
+export function resolveDeliveryTarget(configured: DeliveryMode): DeliveryTarget {
+  switch (configured) {
+    case 'inject': return 'inject'
+    case 'followup': return 'followup'
+    case 'auto':
+    case 'tool-result': return 'tool-result'
+  }
+}
+
+/** Whether a result is the tools runtime's canonical rejection for `toolName`. */
+function isRejectionResult(result: Readonly<ToolExecutionResult>, toolName: string): boolean {
+  return result.isError
+    && result.error?.message.startsWith(`the user rejected tool "${toolName}"`) === true
 }
 
 /** Host-only relay runtime. */
@@ -83,6 +108,8 @@ export class ReviewRelayRuntime {
   private readonly delivered = new DeliveredSet()
   private readonly pendingReviews = new Map<string, PendingReview>()
   private readonly pendingDeliveries = new Map<string, PendingDelivery>()
+  private readonly pendingEnrichments = new Map<string, PendingEnrichment>()
+  private readonly pendingToolEnrichments = new Map<string, PendingEnrichment[]>()
   private readonly deliveryStatus = new Map<string, { state: DeliveryState; at: number }>()
   private clientLocale: string | undefined
   private httpReady = false
@@ -104,6 +131,7 @@ export class ReviewRelayRuntime {
   /** Install listeners, routes, and disposal. */
   install(): void {
     this.ctx.on('approval/request', this.onApproval, true)
+    this.ctx.on('tools/post-execute', this.onPostExecute)
     this.ctx.on('session/event', this.onSessionEvent)
     this.ctx.inject(['connection'], (scope) => { this.installHttp(scope) })
     this.ctx.effect(() => () => { this.dispose() }, 'review-relay: dispose')
@@ -124,7 +152,9 @@ export class ReviewRelayRuntime {
 
   /** Messages waiting for their tool result (diagnostics/tests). */
   get pendingDeliveryCount(): number {
-    return this.pendingDeliveries.size
+    let total = this.pendingDeliveries.size + this.pendingEnrichments.size
+    for (const queue of this.pendingToolEnrichments.values()) total += queue.length
+    return total
   }
 
   /** Clear every in-memory structure and abort active translations. */
@@ -134,6 +164,8 @@ export class ReviewRelayRuntime {
     this.translator.clear()
     this.pendingReviews.clear()
     this.pendingDeliveries.clear()
+    this.pendingEnrichments.clear()
+    this.pendingToolEnrichments.clear()
     this.deliveryStatus.clear()
     this.delivered.clear()
   }
@@ -156,14 +188,21 @@ export class ReviewRelayRuntime {
     const callId = request.callId === undefined ? undefined : String(request.callId)
     if (callId === undefined) {
       const outcome = await next()
-      if (outcome === 'rejected' && isReview && this.config.forwardMode === 'always' && parsed.reason !== undefined) {
-        const text = buildRelayMessage({
+      if (outcome === 'rejected' && isReview && parsed !== undefined && this.config.forwardMode === 'always' && parsed.reason !== undefined) {
+        const input = {
           toolName: parsed.toolName,
           reviewerReason: parsed.reason,
           maxForwardChars: this.config.maxForwardChars,
-        })
-        if (text !== undefined) {
-          this.stageDelivery(request.agent, sessionId, request.toolName, parsed.reason, undefined, text)
+        }
+        const target = resolveDeliveryTarget(this.config.delivery)
+        if (target === 'tool-result') {
+          const text = buildToolResultRelay(input)
+          if (text !== undefined) this.stageEnrichment(sessionId, undefined, request.toolName, text, parsed.reason)
+        } else {
+          const text = buildRelayMessage(input)
+          if (text !== undefined) {
+            this.stageDelivery(request.agent, sessionId, request.toolName, parsed.reason, undefined, text)
+          }
         }
       }
       return outcome
@@ -222,25 +261,45 @@ export class ReviewRelayRuntime {
       && settled.translation?.status === 'ok'
       ? settled.translation.text
       : undefined
-    const text = buildRelayMessage({
+    const input = {
       toolName: settled.toolName,
       ...note === '' ? {} : { note },
       ...reviewerReason === undefined ? {} : { reviewerReason },
       ...translation === undefined ? {} : { translation },
       targetLanguage: settled.targetLanguage,
       maxForwardChars: this.config.maxForwardChars,
-    })
+    }
+    const target = resolveDeliveryTarget(this.config.delivery)
+    if (target === 'tool-result') {
+      const text = buildToolResultRelay(input)
+      if (text === undefined) return outcome
+      this.stageEnrichment(sessionId, callId, settled.toolName, text)
+      return outcome
+    }
+    const text = buildRelayMessage(input)
     if (text === undefined) return outcome
     this.stageDelivery(settled.agent, sessionId, settled.toolName, reviewerReason, callId, text)
     return outcome
   }
 
-  /** Deliver only after the matching tool/result is committed. */
+  /**
+   * Deliver legacy messages after the matching tool/result is committed, and
+   * fail any tool-result enrichment that never reached post-execute.
+   */
   private readonly onSessionEvent = (session: Session, event: SessionEvent): void => {
     if (this.disposed) return
+    const sessionId = String(session.id)
     if (event.type === 'tool/result') {
       const callId = String(event.data.message.toolCallId)
-      const key = this.deliveryMapKey(String(session.id), callId)
+      if (resolveDeliveryTarget(this.config.delivery) === 'tool-result') {
+        const key = this.pendingKey(sessionId, callId)
+        if (this.pendingEnrichments.delete(key)) {
+          this.recordDelivery(sessionId, callId, 'failed')
+          this.ctx.logger.warn('review-relay: tool result committed without relay enrichment')
+        }
+        return
+      }
+      const key = this.deliveryMapKey(sessionId, callId)
       const delivery = this.pendingDeliveries.get(key)
       if (delivery !== undefined) {
         this.pendingDeliveries.delete(key)
@@ -251,14 +310,15 @@ export class ReviewRelayRuntime {
       return
     }
     if (event.type === 'turn/end') {
-      const prefix = `${String(session.id)}\0`
+      this.failPendingEnrichments(sessionId)
+      const prefix = `${sessionId}\0`
       for (const key of this.pendingDeliveries.keys()) {
         if (key.startsWith(prefix)) this.pendingDeliveries.delete(key)
       }
     }
   }
 
-  /** Relay a final Auto review denial that never asked the user. */
+  /** Legacy path: relay a final Auto review denial that never asked the user. */
   private maybeRelayDirectDeny(
     session: Session,
     data: Extract<SessionEvent, { type: 'tool/result' }>['data'],
@@ -284,6 +344,165 @@ export class ReviewRelayRuntime {
     const text = `Auto review rejected tool "${toolName}".\n\nReviewer reason (verbatim):\n${reviewer.text}`
     const delivery: PendingDelivery = { agent, sessionId: String(session.id), callId: undefined, text, at: Date.now() }
     queueMicrotask(() => { this.deliver(delivery) })
+  }
+
+  /**
+   * Append a staged relay to the rejected call's own result. This runs before
+   * the tool result is materialized and appended to the Session, so the model
+   * sees the note at tool priority and the conversation shows no synthetic
+   * user message.
+   */
+  private readonly onPostExecute = async (
+    exec: ToolExecution,
+    result: Readonly<ToolExecutionResult>,
+    next: () => Promise<PostToolDecision>,
+  ): Promise<PostToolDecision> => {
+    const downstream = await next()
+    if (this.disposed || !this.config.enabled) return downstream
+    if (resolveDeliveryTarget(this.config.delivery) !== 'tool-result') return downstream
+    try {
+      return this.enrichPostExecute(exec, result, downstream)
+    } catch (error: unknown) {
+      this.ctx.logger.warn(
+        `review-relay: post-execute enrichment failed: ${error instanceof Error ? error.message : String(error)}`,
+      )
+      return downstream
+    }
+  }
+
+  /** Match one staged relay to this call and fold it onto the result content. */
+  private enrichPostExecute(
+    exec: ToolExecution,
+    result: Readonly<ToolExecutionResult>,
+    decision: PostToolDecision,
+  ): PostToolDecision {
+    const sessionId = exec.agent === undefined ? undefined : String(exec.agent.session.id)
+    if (sessionId !== undefined) {
+      const callId = String(exec.callId)
+      const key = this.pendingKey(sessionId, callId)
+      const exact = this.pendingEnrichments.get(key)
+      if (exact !== undefined) {
+        if (!isRejectionResult(result, exec.name)) {
+          this.pendingEnrichments.delete(key)
+          this.recordDelivery(sessionId, callId, 'failed')
+          this.ctx.logger.warn(`review-relay: pending relay did not match the rejected result for tool "${exec.name}"`)
+          return decision
+        }
+        const appended = this.appendRelay(decision, exact.text, result)
+        this.pendingEnrichments.delete(key)
+        if (appended === undefined) {
+          this.recordDelivery(sessionId, callId, 'failed')
+          return decision
+        }
+        this.recordDelivery(sessionId, callId, 'delivered')
+        this.ctx.logger.info(`review-relay: attached rejection notice to tool "${exec.name}" result`)
+        return appended
+      }
+      const queued = this.takeToolEnrichment(sessionId, exec.name, result)
+      if (queued !== undefined) {
+        const appended = this.appendRelay(decision, queued.text, result)
+        if (appended !== undefined) {
+          this.ctx.logger.info(`review-relay: attached rejection notice to tool "${exec.name}" result`)
+          return appended
+        }
+      }
+    }
+    return this.enrichDirectDeny(exec, result, decision)
+  }
+
+  /** Take the oldest no-callId relay staged for this session/tool, if any. */
+  private takeToolEnrichment(
+    sessionId: string,
+    toolName: string,
+    result: Readonly<ToolExecutionResult>,
+  ): PendingEnrichment | undefined {
+    if (!isRejectionResult(result, toolName)) return undefined
+    const key = this.toolEnrichmentKey(sessionId, toolName)
+    const queue = this.pendingToolEnrichments.get(key)
+    if (queue === undefined || queue.length === 0) return undefined
+    const pending = queue.shift()
+    if (queue.length === 0) this.pendingToolEnrichments.delete(key)
+    return pending
+  }
+
+  /** Append one text block while preserving the downstream decision. */
+  private appendRelay(
+    decision: PostToolDecision,
+    text: string,
+    result: Readonly<ToolExecutionResult>,
+  ): PostToolDecision | undefined {
+    const block = { type: 'text' as const, text }
+    if (decision.kind === 'block') {
+      return { ...decision, feedback: [...decision.feedback, block] }
+    }
+    if (decision.value !== undefined) return undefined
+    return { ...decision, content: [...(decision.content ?? result.content), block] }
+  }
+
+  /** Attach the structured reason of a final Auto review denial that never asked. */
+  private enrichDirectDeny(
+    exec: ToolExecution,
+    result: Readonly<ToolExecutionResult>,
+    decision: PostToolDecision,
+  ): PostToolDecision {
+    if (!this.config.forwardOnDirectDeny) return decision
+    const info = result.error?.info
+    if (info?.code !== 'AUTO_REVIEW_DENIED' || info.reason === undefined || info.reason.trim() === '') return decision
+    const sessionId = exec.agent === undefined ? undefined : String(exec.agent.session.id)
+    if (sessionId !== undefined) {
+      const key = `direct:${deliveryKey({ sessionId, callId: String(exec.callId), toolName: exec.name, reason: info.reason })}`
+      if (!this.delivered.mark(key)) return decision
+    }
+    const text = buildToolResultRelay({
+      toolName: exec.name,
+      reviewerReason: info.reason,
+      maxForwardChars: this.config.maxForwardChars,
+    })
+    if (text === undefined) return decision
+    return this.appendRelay(decision, text, result) ?? decision
+  }
+
+  /** Drop queued relays for a closed turn and surface their failure. */
+  private failPendingEnrichments(sessionId: string): void {
+    const prefix = `${sessionId}\0`
+    for (const [key, pending] of this.pendingEnrichments) {
+      if (!key.startsWith(prefix)) continue
+      this.pendingEnrichments.delete(key)
+      if (pending.callId !== undefined) this.recordDelivery(sessionId, pending.callId, 'failed')
+    }
+    for (const key of this.pendingToolEnrichments.keys()) {
+      if (key.startsWith(prefix)) this.pendingToolEnrichments.delete(key)
+    }
+  }
+
+  /** Queue one relay for the next matching rejected result. */
+  private stageEnrichment(
+    sessionId: string,
+    callId: string | undefined,
+    toolName: string,
+    text: string,
+    reason?: string | undefined,
+  ): void {
+    const key = deliveryKey({
+      sessionId,
+      toolName,
+      ...callId === undefined ? {} : { callId },
+      ...reason === undefined ? {} : { reason },
+    })
+    if (!this.delivered.mark(key)) {
+      this.ctx.logger.warn(`review-relay: duplicate rejection ignored for tool "${toolName}"`)
+      return
+    }
+    const pending: PendingEnrichment = { sessionId, callId, toolName, text, at: Date.now() }
+    if (callId === undefined) {
+      const queueKey = this.toolEnrichmentKey(sessionId, toolName)
+      const queue = this.pendingToolEnrichments.get(queueKey)
+      if (queue === undefined) this.pendingToolEnrichments.set(queueKey, [pending])
+      else queue.push(pending)
+      return
+    }
+    this.recordDelivery(sessionId, callId, 'pending')
+    this.pendingEnrichments.set(this.pendingKey(sessionId, callId), pending)
   }
 
   private stageDelivery(
@@ -314,7 +533,7 @@ export class ReviewRelayRuntime {
       content: [{ type: 'text', text: delivery.text }],
       source: { kind: 'user' },
     })
-    const mode = resolveDeliveryMode(delivery.agent.status, this.config.delivery)
+    const mode = resolveDeliveryTarget(this.config.delivery) === 'followup' ? 'followup' : 'inject'
     try {
       if (mode === 'followup') delivery.agent.followup(message)
       else delivery.agent.inject(message)
@@ -526,10 +745,24 @@ export class ReviewRelayRuntime {
     return `${sessionId}\0${callId}`
   }
 
+  private toolEnrichmentKey(sessionId: string, toolName: string): string {
+    return `${sessionId}\0tool\0${toolName}`
+  }
+
   private prune(): void {
     const cutoff = Date.now() - PENDING_TTL_MS
     for (const [key, pending] of this.pendingReviews) {
       if (pending.at < cutoff) this.pendingReviews.delete(key)
+    }
+    for (const [key, pending] of this.pendingEnrichments) {
+      if (pending.at >= cutoff) continue
+      this.pendingEnrichments.delete(key)
+      if (pending.callId !== undefined) this.recordDelivery(pending.sessionId, pending.callId, 'failed')
+    }
+    for (const [key, queue] of this.pendingToolEnrichments) {
+      const kept = queue.filter(pending => pending.at >= cutoff)
+      if (kept.length === 0) this.pendingToolEnrichments.delete(key)
+      else this.pendingToolEnrichments.set(key, kept)
     }
   }
 }

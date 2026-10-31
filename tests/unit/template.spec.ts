@@ -1,26 +1,26 @@
 import { describe, expect, it } from 'vitest'
-import { buildRelayMessage, truncateReviewerReason } from '../../src/shared/template.js'
+import { buildRelayMessage, buildToolResultRelay, truncateReviewerReason } from '../../src/shared/template.js'
 
-describe('relay template', () => {
+describe('tool-result relay template', () => {
   it('omits an empty note', () => {
-    expect(buildRelayMessage({
+    expect(buildToolResultRelay({
       toolName: 'bash',
       note: '   ',
       reviewerReason: 'delete build/',
       maxForwardChars: 8000,
-    })).toBe('User rejected tool "bash".\n\nReviewer reason (verbatim):\ndelete build/')
+    })).toBe('Reviewer reason (verbatim):\ndelete build/')
   })
 
   it('omits the reviewer blocks when not forwarding', () => {
-    expect(buildRelayMessage({
+    expect(buildToolResultRelay({
       toolName: 'bash',
       note: 'use pnpm clean',
       maxForwardChars: 8000,
-    })).toBe('User rejected tool "bash".\n\nUser note:\nuse pnpm clean')
+    })).toBe('User note:\nuse pnpm clean')
   })
 
   it('includes note, verbatim reason, and translation', () => {
-    expect(buildRelayMessage({
+    expect(buildToolResultRelay({
       toolName: 'bash',
       note: 'use pnpm clean',
       reviewerReason: 'delete build/',
@@ -28,7 +28,6 @@ describe('relay template', () => {
       targetLanguage: 'zh-CN',
       maxForwardChars: 8000,
     })).toBe([
-      'User rejected tool "bash".',
       'User note:\nuse pnpm clean',
       'Reviewer reason (verbatim):\ndelete build/',
       'Reviewer reason (translated to zh-CN):\n删除 build/',
@@ -36,23 +35,42 @@ describe('relay template', () => {
   })
 
   it('omits a translation identical to the verbatim reason', () => {
-    expect(buildRelayMessage({
+    expect(buildToolResultRelay({
       toolName: 'bash',
       reviewerReason: 'delete build/',
       translation: 'delete build/',
       targetLanguage: 'zh-CN',
       maxForwardChars: 8000,
-    })).toBe('User rejected tool "bash".\n\nReviewer reason (verbatim):\ndelete build/')
+    })).toBe('Reviewer reason (verbatim):\ndelete build/')
   })
 
   it('returns undefined when there is nothing to relay', () => {
-    expect(buildRelayMessage({ toolName: 'bash', maxForwardChars: 8000 })).toBeUndefined()
+    expect(buildToolResultRelay({ toolName: 'bash', maxForwardChars: 8000 })).toBeUndefined()
   })
 
   it('preserves interior whitespace and line breaks exactly', () => {
     const reason = '  first\n\tsecond  '
-    expect(buildRelayMessage({ toolName: 'bash', reviewerReason: reason, maxForwardChars: 8000 }))
-      .toBe(`User rejected tool "bash".\n\nReviewer reason (verbatim):\n${reason}`)
+    expect(buildToolResultRelay({ toolName: 'bash', reviewerReason: reason, maxForwardChars: 8000 }))
+      .toBe(`Reviewer reason (verbatim):\n${reason}`)
+  })
+})
+
+describe('legacy user-message template', () => {
+  it('keeps the standalone rejection line', () => {
+    expect(buildRelayMessage({
+      toolName: 'bash',
+      note: 'use pnpm clean',
+      reviewerReason: 'delete build/',
+      maxForwardChars: 8000,
+    })).toBe([
+      'User rejected tool "bash".',
+      'User note:\nuse pnpm clean',
+      'Reviewer reason (verbatim):\ndelete build/',
+    ].join('\n\n'))
+  })
+
+  it('returns undefined when there is nothing to relay', () => {
+    expect(buildRelayMessage({ toolName: 'bash', maxForwardChars: 8000 })).toBeUndefined()
   })
 })
 

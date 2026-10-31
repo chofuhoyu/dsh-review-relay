@@ -69,7 +69,7 @@ export const Config: z<Partial<ReviewRelayConfig>, ReviewRelayConfig> = z.object
   translationProvider: z.union(['llm', 'translator', 'off'] as const).default('llm'),
   translationModel: z.string().required(false),
   translationTimeoutMs: z.number().default(10000),
-  delivery: z.union(['auto', 'inject', 'followup'] as const).default('auto'),
+  delivery: z.union(['tool-result', 'auto', 'inject', 'followup'] as const).default('tool-result'),
   forwardOnDirectDeny: z.boolean().default(false),
 })
 

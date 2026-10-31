@@ -1,9 +1,12 @@
 /**
- * Fixed injection template. The labels are English on purpose: the model sees
- * stable block names, while the note and reviewer text keep their own language.
+ * Relay text templates.
+ *
+ * The default path appends a block to the rejected tool call's own result, so
+ * the labels are English and stable for the model. The legacy path builds a
+ * standalone user message; it is kept for `delivery: 'inject' | 'followup'`.
  */
 
-/** Inputs for one relay message. */
+/** Inputs for one relay text. */
 export interface RelayTemplateInput {
   readonly toolName: string
   readonly note?: string | undefined
@@ -38,12 +41,33 @@ export function truncateReviewerReason(reason: string, max: number): TruncatedRe
 }
 
 /**
- * Render the fixed relay message, omitting every empty block.
+ * Render the blocks appended to a rejected tool result. The result's own
+ * `Error: the user rejected tool "..."` line already states the decision, so
+ * this text carries only the note, the reviewer reason, and the translation.
+ * @param input - tool name, optional note, optional reviewer text, optional translation.
+ * @returns the appended text, or undefined when there is nothing to relay.
+ */
+export function buildToolResultRelay(input: RelayTemplateInput): string | undefined {
+  const sections = relaySections(input)
+  return sections.length === 0 ? undefined : sections.join('\n\n')
+}
+
+/**
+ * Render the legacy synthetic user message used by `delivery: 'inject'` and
+ * `delivery: 'followup'`.
  * @param input - tool name, optional note, optional reviewer text, optional translation.
  * @returns the message text, or undefined when there is nothing to relay.
  */
 export function buildRelayMessage(input: RelayTemplateInput): string | undefined {
-  const sections: string[] = [`User rejected tool "${input.toolName}".`]
+  const sections = relaySections(input)
+  return sections.length === 0
+    ? undefined
+    : [`User rejected tool "${input.toolName}".`, ...sections].join('\n\n')
+}
+
+/** Shared note/reason/translation blocks, in model-facing order. */
+function relaySections(input: RelayTemplateInput): string[] {
+  const sections: string[] = []
   const note = input.note !== undefined && input.note.trim() !== '' ? input.note : undefined
   if (note !== undefined) sections.push(`User note:\n${note}`)
   if (input.reviewerReason !== undefined && input.reviewerReason !== '') {
@@ -57,5 +81,5 @@ export function buildRelayMessage(input: RelayTemplateInput): string | undefined
       sections.push(`Reviewer reason (translated to ${input.targetLanguage}):\n${input.translation}`)
     }
   }
-  return sections.length === 1 ? undefined : sections.join('\n\n')
+  return sections
 }

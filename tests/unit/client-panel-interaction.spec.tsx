@@ -118,7 +118,7 @@ describe('review relay panel interactions', () => {
       forward: true,
       locale: 'zh-CN',
     })
-    await waitFor(() => { expect(screen.getByText('Rejected; the note was relayed to the agent')).toBeTruthy() })
+    await waitFor(() => { expect(screen.getByText('Rejected; the note was relayed')).toBeTruthy() })
   })
 
   it('replaces the success toast with a visible error when delivery fails', async () => {

@@ -19,8 +19,8 @@ export { Config }
 export type { ReviewRelayConfig } from './host/config.js'
 
 /**
- * Install the observer, the authenticated client routes, and the delivery
- * queue. Invalid configuration throws here, at load time.
+ * Install the observer, the authenticated client routes, and the relay
+ * queues. Invalid configuration throws here, at load time.
  * @param ctx - Host plugin context.
  * @param config - raw or resolved plugin config.
  */

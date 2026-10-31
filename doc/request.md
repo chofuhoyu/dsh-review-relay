@@ -2,6 +2,8 @@
 
 > 一句话：把自动审查 agent 的拒绝意见，连同用户在拒绝时写下的说明，可靠地送进正在工作的主 agent 上下文，并让审查意见以中文呈现。
 
+> **2026-10-31 实现修订（0.2.0）：** 默认转交目标已从 `agent.inject()` 合成用户消息改为 `tools/post-execute` 追加到被拒工具调用的 `tool/result` 内容，避免主对话里出现一条伪用户消息；`delivery: 'inject' | 'followup'` 作为旧模式保留。本文档其余部分保留初稿的 inject 描述作为需求历史，当前行为以 [README](../README.md) 和 [CHANGELOG](../CHANGELOG.md) 为准。
+
 | 项 | 内容 |
 |---|---|
 | 文档版本 | 0.1（初稿） |

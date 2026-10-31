@@ -5,6 +5,8 @@
 - 结论：四个假设（拆成 H1–H5 五项验证）都可落地，但 **request.md 的审查型审批 reason 前缀与真实代码不一致**；客户端详情槽还有一个“子槽只能声明一次”的硬限制。见下文修正。
 - 后续状态：M1/M2/M3 已实现并推送到 GitHub；见 [README](../README.md) 与 [CHANGELOG](../CHANGELOG.md)。
 
+> **0.2.0 修订：** 本文的 H5 与 M1 方案记录的是 0.1.0 的 `inject()` 路径。0.2.0 默认改用 `tools/post-execute` 把转交块追加到被拒工具结果；`inject()` 只保留在显式的 `delivery: 'inject' | 'followup'` 兼容模式中。
+
 ## 0. 验证命令（开工前先跑这些）
 
 ```sh

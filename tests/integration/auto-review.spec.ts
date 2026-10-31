@@ -5,7 +5,6 @@ import {
   LlmAdapter,
   ToolCallId,
   createMessage,
-  createToolResultMessage,
   type GenerateOptions,
   type StreamChunk,
   type UserMessage,
@@ -94,7 +93,7 @@ function stubAgent(session: Session, injected: string[]): Agent {
 }
 
 describe('real auto-review integration', () => {
-  it('recognizes the shipped ask and relays its verbatim reviewer reason', async () => {
+  it('recognizes the shipped ask and attaches its verbatim reviewer reason', async () => {
     const ctx = await reviewHarness()
     const session = ctx.sessions.create(SessionId('auto-review-relay'), { meta: { cwd: '/workspace' } })
     ctx.permissionPresets.set(session, AUTO_PRESET)
@@ -146,19 +145,11 @@ describe('real auto-review integration', () => {
     expect(observedReason).toBe('Auto review denied tool "probe": irreversible delete of build/')
     expect(result.isError).toBe(true)
     expect(result.error?.message).toBe('the user rejected tool "probe"')
-
-    session.append('tool/result', {
-      turn: 1,
-      step: 1,
-      message: createToolResultMessage({ callId, content: result.content, isError: result.isError }),
-    }, { surfaceOp: 'append' })
-
-    await new Promise<void>((resolve) => setTimeout(resolve, 0))
-    expect(injected).toHaveLength(1)
-    expect(injected[0]).toBe([
-      'User rejected tool "probe".',
-      'Reviewer reason (verbatim):\nirreversible delete of build/',
-    ].join('\n\n'))
+    expect(result.content).toEqual([
+      { type: 'text', text: 'Error: the user rejected tool "probe"' },
+      { type: 'text', text: 'Reviewer reason (verbatim):\nirreversible delete of build/' },
+    ])
+    expect(injected).toEqual([])
     const asked = session.snapshotEvents().filter(event => event.type === 'approval/asked')
     expect(asked).toHaveLength(1)
     expect(asked[0]?.type === 'approval/asked' ? asked[0].data.reason : undefined).toBe(observedReason)

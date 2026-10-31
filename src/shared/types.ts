@@ -6,8 +6,15 @@ export type ForwardMode = 'ask' | 'always' | 'never'
 /** Translation backend selection. */
 export type TranslationProvider = 'llm' | 'translator' | 'off'
 
-/** How a prepared relay message is delivered to the working agent. */
-export type DeliveryMode = 'auto' | 'inject' | 'followup'
+/**
+ * Where a prepared relay text is delivered.
+ *
+ * `tool-result` appends it to the rejected call's own tool result, so the model
+ * sees it at tool priority and the conversation shows no synthetic user
+ * message. `auto` is a deprecated alias for `tool-result`. `inject` and
+ * `followup` are the legacy synthetic-user-message modes.
+ */
+export type DeliveryMode = 'tool-result' | 'auto' | 'inject' | 'followup'
 
 /** One parsed Auto review ask. `reason` is absent when the reviewer gave none. */
 export interface ReviewAsk {

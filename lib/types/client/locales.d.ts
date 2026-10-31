@@ -18,7 +18,7 @@ export declare const zh: {
     readonly translating: "翻译中…";
     readonly translationFailed: "翻译失败，已保留原文";
     readonly translationPrivacy: "审查意见会发送给当前模型提供方进行翻译。";
-    readonly noteLabel: "说明（可选，会作为用户消息发送给正在工作的 agent）";
+    readonly noteLabel: "说明（可选，会随被拒调用转交给 agent）";
     readonly notePlaceholder: "例如：不要删 build/，改用 pnpm clean";
     readonly noteCounter: "{count} / {max}";
     readonly noteTooLong: "说明超过 {max} 字，请缩短后再提交";
@@ -35,7 +35,7 @@ export declare const zh: {
     readonly cancelled: "审批已取消";
     readonly closed: "已处理";
     readonly command: "命令";
-    readonly relayed: "已拒绝，说明已转交给 agent";
+    readonly relayed: "已拒绝，说明已转交";
     readonly deliveryFailed: "拒绝成功，但说明转交失败；请查看 Host 日志";
     readonly 'error.network': "网络错误";
     readonly 'error.noteTooLong': "说明过长";
