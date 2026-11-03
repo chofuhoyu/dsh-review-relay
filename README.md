@@ -2,7 +2,7 @@
 
 Relay DeepSeek Harness **Auto review** rejection reasons — and the note you write when rejecting — back into the working agent. The card shows a Chinese translation, the forwarded reason stays verbatim.
 
-> Status: `0.2.0`, distributed from GitHub only, **not published to npm**. Target: DSH `0.2.x`; development baseline `0.2.1-rc.2`.
+> Status: `0.2.0`, distributed as git tags (pin `#v0.2.0`); the `lib/` build output is committed so installs need no build step. Target: DSH `0.2.x`; development baseline `0.2.1-rc.2`.
 
 ![Approval card preview](docs/card-preview.svg)
 
@@ -27,13 +27,23 @@ The current default instead enriches the denied call through `tools/post-execute
 
 Requires DSH `0.2.1-rc.2` (or a compatible `0.2.x`), Auto review enabled, and the Web UI.
 
-From GitHub (not published to npm):
+The plugin is distributed as git tags. `lib/` is committed, so the install uses prebuilt code and runs no build script.
 
 ```sh
-dsh plugin --profile web add git+https://github.com/chofuhoyu/dsh-review-relay.git
+dsh plugin --profile web add "git+ssh://git@github.com/chofuhoyu/dsh-review-relay.git#v0.2.0"
 ```
 
-Or from a local checkout:
+Use `git+https://github.com/chofuhoyu/dsh-review-relay.git#v0.2.0` on a machine without a GitHub SSH key; the private repository then asks for credentials. The `github:` shorthand also works, but it resolves over SSH.
+
+Upgrade by pointing at a newer tag:
+
+```sh
+dsh plugin --profile web add "git+ssh://git@github.com/chofuhoyu/dsh-review-relay.git#v0.3.0"
+```
+
+`#semver:^0.2.0` takes the highest matching tag instead of pinning one.
+
+Or from a local checkout (development):
 
 ```sh
 git clone git@github.com:chofuhoyu/dsh-review-relay.git
