@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.1 — 2026-11-13
+
+- Documentation-only release: both READMEs now open with the install guide, and the `github:chofuhoyu/dsh-review-relay` shorthand is the primary install spec, with the HTTPS form as the fallback.
+- The install section is no longer buried under the rationale, and the outdated note about a private repository is gone.
+- Version pins move to `v0.2.1`. No code or `lib/` changes.
+
 ## 0.2.0 — 2026-10-31
 
 - **Default relay target is now the rejected tool result, not a synthetic user message.** The Host enriches the denied call through `tools/post-execute`; the note and reviewer reason become a text block on `tool/result`. The model sees them at tool priority and the Web UI no longer shows an extra user bubble in the main conversation.

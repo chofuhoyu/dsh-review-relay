@@ -1,6 +1,6 @@
 {
   "name": "dsh-review-relay",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Relay Auto review rejection reasons (and the user's note) back into the working DeepSeek Harness agent.",
   "keywords": [
     "dsh",

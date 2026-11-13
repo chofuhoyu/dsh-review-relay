@@ -5,10 +5,10 @@
 要求：DSH `0.2.1-rc.2` 或兼容的 `0.2.x`，已启用 Auto review，使用 Web UI。插件以 git tag 分发，`lib/` 是提交进仓库的构建产物，安装时不会跑任何构建脚本。
 
 ```sh
-dsh plugin --profile web add github:chofuhoyu/dsh-review-relay#v0.2.0
+dsh plugin --profile web add github:chofuhoyu/dsh-review-relay#v0.2.1
 ```
 
-`github:` 简写走 SSH；机器上没有 GitHub SSH key 时改用 `git+https://github.com/chofuhoyu/dsh-review-relay.git#v0.2.0`。`#semver:^0.2.0` 会取范围内最高的 tag，而不是锁死单个版本。安装后重启 / 刷新 Web UI，确认 profile 里有 `review-relay` 行：
+`github:` 简写走 SSH；机器上没有 GitHub SSH key 时改用 `git+https://github.com/chofuhoyu/dsh-review-relay.git#v0.2.1`。`#semver:^0.2.0` 会取范围内最高的 tag，而不是锁死单个版本。安装后重启 / 刷新 Web UI，确认 profile 里有 `review-relay` 行：
 
 ```sh
 dsh --profile web --dump-config | grep -A2 review-relay
@@ -25,7 +25,7 @@ dsh plugin --profile web add ./dsh-review-relay
 
 把 DeepSeek Harness **Auto review** 的拒绝意见，连同你在拒绝时写下的说明，可靠地送进正在工作的 agent 上下文；审查意见以中文展示，原文逐字保留。
 
-> 状态：`0.2.0`，以 git tag 分发（锁定 `#v0.2.0`）；`lib/` 构建产物已提交，安装时无需构建。目标运行时 DSH `0.2.x`，开发基线 `0.2.1-rc.2`。
+> 状态：`0.2.1`，以 git tag 分发（锁定 `#v0.2.1`）；`lib/` 构建产物已提交，安装时无需构建。目标运行时 DSH `0.2.x`，开发基线 `0.2.1-rc.2`。
 
 ![审批卡片示意](docs/card-preview.svg)
 

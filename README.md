@@ -5,10 +5,10 @@
 Requires DSH `0.2.1-rc.2` (or a compatible `0.2.x`), Auto review enabled, and the Web UI. The plugin is distributed as git tags, and `lib/` is committed, so the install uses prebuilt code and runs no build script.
 
 ```sh
-dsh plugin --profile web add github:chofuhoyu/dsh-review-relay#v0.2.0
+dsh plugin --profile web add github:chofuhoyu/dsh-review-relay#v0.2.1
 ```
 
-The `github:` shorthand resolves over SSH. Without a GitHub SSH key, use `git+https://github.com/chofuhoyu/dsh-review-relay.git#v0.2.0` instead. `#semver:^0.2.0` takes the highest matching tag rather than pinning one. Restart / reload the Web UI, then confirm the bundle row:
+The `github:` shorthand resolves over SSH. Without a GitHub SSH key, use `git+https://github.com/chofuhoyu/dsh-review-relay.git#v0.2.1` instead. `#semver:^0.2.0` takes the highest matching tag rather than pinning one. Restart / reload the Web UI, then confirm the bundle row:
 
 ```sh
 dsh --profile web --dump-config | grep -A2 review-relay
@@ -25,7 +25,7 @@ Without Auto review the plugin still loads, but takes over no approval; ordinary
 
 Relay DeepSeek Harness **Auto review** rejection reasons — and the note you write when rejecting — back into the working agent. The card shows a Chinese translation, the forwarded reason stays verbatim.
 
-> Status: `0.2.0`, distributed as git tags (pin `#v0.2.0`); the `lib/` build output is committed so installs need no build step. Target: DSH `0.2.x`; development baseline `0.2.1-rc.2`.
+> Status: `0.2.1`, distributed as git tags (pin `#v0.2.1`); the `lib/` build output is committed so installs need no build step. Target: DSH `0.2.x`; development baseline `0.2.1-rc.2`.
 
 ![Approval card preview](docs/card-preview.svg)
 
