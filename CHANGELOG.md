@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.0 — 2026-11-13
+
+- Maintenance release for the `dsh-plugins` superproject: the shared release and development rules moved to the superproject's `AGENTS.md`. No functional changes.
+
 ## 0.2.1 — 2026-11-13
 
 - Documentation-only release: both READMEs now open with the install guide — add `github:chofuhoyu/dsh-review-relay` from the Plugins page, or run the same spec with `dsh plugin --profile web add`.
