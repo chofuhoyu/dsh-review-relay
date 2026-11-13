@@ -1,5 +1,28 @@
 # dsh-review-relay
 
+## 安装
+
+要求：DSH `0.2.1-rc.2` 或兼容的 `0.2.x`，已启用 Auto review，使用 Web UI。插件以 git tag 分发，`lib/` 是提交进仓库的构建产物，安装时不会跑任何构建脚本。
+
+```sh
+dsh plugin --profile web add github:chofuhoyu/dsh-review-relay#v0.2.0
+```
+
+`github:` 简写走 SSH；机器上没有 GitHub SSH key 时改用 `git+https://github.com/chofuhoyu/dsh-review-relay.git#v0.2.0`。`#semver:^0.2.0` 会取范围内最高的 tag，而不是锁死单个版本。安装后重启 / 刷新 Web UI，确认 profile 里有 `review-relay` 行：
+
+```sh
+dsh --profile web --dump-config | grep -A2 review-relay
+```
+
+开发时从本地 checkout 安装：
+
+```sh
+git clone git@github.com:chofuhoyu/dsh-review-relay.git
+dsh plugin --profile web add ./dsh-review-relay
+```
+
+没有 auto-review 时插件正常加载，但不会接管任何审批；普通审批完全不受影响。
+
 把 DeepSeek Harness **Auto review** 的拒绝意见，连同你在拒绝时写下的说明，可靠地送进正在工作的 agent 上下文；审查意见以中文展示，原文逐字保留。
 
 > 状态：`0.2.0`，以 git tag 分发（锁定 `#v0.2.0`）；`lib/` 构建产物已提交，安装时无需构建。目标运行时 DSH `0.2.x`，开发基线 `0.2.1-rc.2`。
@@ -22,41 +45,6 @@ Auto review 判 deny、审批策略为 `ask` 时，官方卡片会把 reviewer �
 审批结果本身没有“附言”字段：`ApprovalOutcome` 只有 `allowed-once | rejected | cancelled | unavailable`，Host 插件无法通过审批结果把附言带过去。旧实现用 `agent.inject()` 绕开这个限制，但 `inject()` 写入的是一条真正的 `user/message`，Web UI 会把它渲染成普通用户发言，模型也会按用户消息的优先级处理。
 
 现在的默认实现改在 `tools/post-execute` 里给被拒调用补一个文本块。审批被拒仍然会产生一个工具结果，插件在它落盘前追加附言和审查意见即可。这样模型看到的是 bash / 工具结果的一部分（和 `ask_user_question` 的答案位置相同），主对话里不会再出现一条伪用户消息。需要旧行为时显式配置 `delivery: 'inject'` 或 `'followup'`。
-
-## 安装
-
-要求：DSH `0.2.1-rc.2` 或兼容的 `0.2.x`，已启用 Auto review，使用 Web UI。
-
-插件以 git tag 分发。`lib/` 是提交进仓库的构建产物，安装时不会跑任何构建脚本。
-
-```sh
-dsh plugin --profile web add "git+ssh://git@github.com/chofuhoyu/dsh-review-relay.git#v0.2.0"
-```
-
-机器上没有 GitHub SSH key 时改用 `git+https://github.com/chofuhoyu/dsh-review-relay.git#v0.2.0`，私有仓库会要求输入凭据。`github:` 简写也能用，但它走 SSH。
-
-升级时把 tag 换成新的：
-
-```sh
-dsh plugin --profile web add "git+ssh://git@github.com/chofuhoyu/dsh-review-relay.git#v0.3.0"
-```
-
-`#semver:^0.2.0` 会取范围内最高的 tag，而不是锁死单个版本。
-
-或从本地 checkout 安装（开发用）：
-
-```sh
-git clone git@github.com:chofuhoyu/dsh-review-relay.git
-dsh plugin --profile web add ./dsh-review-relay
-```
-
-安装后重启 / 刷新 Web UI。确认 profile 里有 `review-relay` 行：
-
-```sh
-dsh --profile web --dump-config | grep -A2 review-relay
-```
-
-没有 auto-review 时插件正常加载，但不会接管任何审批；普通审批完全不受影响。
 
 ## 使用
 

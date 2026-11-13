@@ -1,5 +1,28 @@
 # dsh-review-relay
 
+## Install
+
+Requires DSH `0.2.1-rc.2` (or a compatible `0.2.x`), Auto review enabled, and the Web UI. The plugin is distributed as git tags, and `lib/` is committed, so the install uses prebuilt code and runs no build script.
+
+```sh
+dsh plugin --profile web add github:chofuhoyu/dsh-review-relay#v0.2.0
+```
+
+The `github:` shorthand resolves over SSH. Without a GitHub SSH key, use `git+https://github.com/chofuhoyu/dsh-review-relay.git#v0.2.0` instead. `#semver:^0.2.0` takes the highest matching tag rather than pinning one. Restart / reload the Web UI, then confirm the bundle row:
+
+```sh
+dsh --profile web --dump-config | grep -A2 review-relay
+```
+
+Development installs use a local checkout:
+
+```sh
+git clone git@github.com:chofuhoyu/dsh-review-relay.git
+dsh plugin --profile web add ./dsh-review-relay
+```
+
+Without Auto review the plugin still loads, but takes over no approval; ordinary approvals are untouched.
+
 Relay DeepSeek Harness **Auto review** rejection reasons — and the note you write when rejecting — back into the working agent. The card shows a Chinese translation, the forwarded reason stays verbatim.
 
 > Status: `0.2.0`, distributed as git tags (pin `#v0.2.0`); the `lib/` build output is committed so installs need no build step. Target: DSH `0.2.x`; development baseline `0.2.1-rc.2`.
@@ -22,41 +45,6 @@ This plugin only **displays, annotates, and relays**. It does not decide allow/d
 An approval outcome has no “note” field: `ApprovalOutcome` is only `allowed-once | rejected | cancelled | unavailable`. The Host-side plugin therefore cannot pass the note through the approval result. The previous implementation worked around that by calling `agent.inject()`, which records a real `user/message`; the Web UI renders it as an ordinary user turn and the model treats it as user-priority input.
 
 The current default instead enriches the denied call through `tools/post-execute`. A denied approval is still a tool result in the pipeline, so the plugin can append one text block to that result before it is committed. The model then sees the note and reviewer reason as part of the bash/tool result — the same place an `ask_user_question` answer appears — while the conversation shows no extra user bubble. `delivery: 'inject' | 'followup'` keeps the old behavior explicitly.
-
-## Install
-
-Requires DSH `0.2.1-rc.2` (or a compatible `0.2.x`), Auto review enabled, and the Web UI.
-
-The plugin is distributed as git tags. `lib/` is committed, so the install uses prebuilt code and runs no build script.
-
-```sh
-dsh plugin --profile web add "git+ssh://git@github.com/chofuhoyu/dsh-review-relay.git#v0.2.0"
-```
-
-Use `git+https://github.com/chofuhoyu/dsh-review-relay.git#v0.2.0` on a machine without a GitHub SSH key; the private repository then asks for credentials. The `github:` shorthand also works, but it resolves over SSH.
-
-Upgrade by pointing at a newer tag:
-
-```sh
-dsh plugin --profile web add "git+ssh://git@github.com/chofuhoyu/dsh-review-relay.git#v0.3.0"
-```
-
-`#semver:^0.2.0` takes the highest matching tag instead of pinning one.
-
-Or from a local checkout (development):
-
-```sh
-git clone git@github.com:chofuhoyu/dsh-review-relay.git
-dsh plugin --profile web add ./dsh-review-relay
-```
-
-Restart / reload the Web UI. Confirm the bundle row:
-
-```sh
-dsh --profile web --dump-config | grep -A2 review-relay
-```
-
-Without Auto review the plugin still loads, but takes over no approval; ordinary approvals are untouched.
 
 ## Use
 
