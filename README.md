@@ -4,30 +4,33 @@
 
 ## 安装
 
-要求：DSH `0.2.1-rc.2` 或兼容的 `0.2.x`，已启用 Auto review，使用 Web UI。插件以 git tag 分发，`lib/` 是提交进仓库的构建产物，安装时不会跑任何构建脚本。
+要求 DSH `0.2.1-rc.2` 或兼容的 `0.2.x`，并启用 Auto review 与 Web UI。
 
-```sh
-dsh plugin --profile web add github:chofuhoyu/dsh-review-relay#v0.2.1
+在 DeepSeek Harness 的「插件」页点击「添加插件」，填入：
+
+```text
+github:chofuhoyu/dsh-review-relay
 ```
 
-`github:` 简写走 SSH；机器上没有 GitHub SSH key 时改用 `git+https://github.com/chofuhoyu/dsh-review-relay.git#v0.2.1`。`#semver:^0.2.0` 会取范围内最高的 tag，而不是锁死单个版本。安装后重启 / 刷新 Web UI，确认 profile 里有 `review-relay` 行：
+也可以直接用 CLI 安装到 `web` profile（`github:` 简写走 SSH，没有 GitHub SSH key 时改用 `git+https://github.com/chofuhoyu/dsh-review-relay.git`）：
 
 ```sh
-dsh --profile web --dump-config | grep -A2 review-relay
+dsh plugin --profile web add github:chofuhoyu/dsh-review-relay
 ```
 
-开发时从本地 checkout 安装：
+安装后刷新 Web 页面。插件会：
 
-```sh
-git clone git@github.com:chofuhoyu/dsh-review-relay.git
-dsh plugin --profile web add ./dsh-review-relay
-```
+1. 监听 Auto review 的审批请求，原样返回审批结果，不改变 allow/deny；
+2. 用同位置的卡片替换官方审批卡，提供中文译文、附言和“一并转交审查意见原文”；
+3. 拒绝后把附言与审查意见追加到被拒工具调用的 `tool/result`，模型在工具结果里读到原因。
 
-没有 auto-review 时插件正常加载，但不会接管任何审批；普通审批完全不受影响。
+依赖 `@deepseek-ai/dsh-experimental-auto-review` bundle 必须已经安装并启用；否则没有 Auto review 拒绝可接管，本插件仍会加载，但普通审批完全不受影响。
+
+本地开发时可以把 `github:chofuhoyu/dsh-review-relay` 换成仓库目录的绝对路径。
 
 把 DeepSeek Harness **Auto review** 的拒绝意见，连同你在拒绝时写下的说明，可靠地送进正在工作的 agent 上下文；审查意见以中文展示，原文逐字保留。
 
-> 状态：`0.2.1`，以 git tag 分发（锁定 `#v0.2.1`）；`lib/` 构建产物已提交，安装时无需构建。目标运行时 DSH `0.2.x`，开发基线 `0.2.1-rc.2`。
+> 状态：`0.2.1`，从 GitHub 直接安装；`lib/` 构建产物已提交，安装时无需构建。目标运行时 DSH `0.2.x`，开发基线 `0.2.1-rc.2`。
 
 ![审批卡片示意](docs/card-preview.svg)
 

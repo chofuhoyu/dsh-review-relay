@@ -2,10 +2,10 @@
 
 ## 0.2.1 — 2026-11-13
 
-- Documentation-only release: both READMEs now open with the install guide, and the `github:chofuhoyu/dsh-review-relay` shorthand is the primary install spec, with the HTTPS form as the fallback.
+- Documentation-only release: both READMEs now open with the install guide — add `github:chofuhoyu/dsh-review-relay` from the Plugins page, or run the same spec with `dsh plugin --profile web add`.
 - The install section is no longer buried under the rationale, and the outdated note about a private repository is gone.
 - The Chinese README is the default `README.md`; English moved to `README.en.md`, and both link to each other.
-- Version pins move to `v0.2.1`. No code or `lib/` changes.
+- Installs now use the unpinned `github:` spec instead of a tag pin; `lib/` is still committed, so no build runs. No code changes.
 
 ## 0.2.0 — 2026-10-31
 

@@ -4,30 +4,33 @@ English | [简体中文](README.md)
 
 ## Install
 
-Requires DSH `0.2.1-rc.2` (or a compatible `0.2.x`), Auto review enabled, and the Web UI. The plugin is distributed as git tags, and `lib/` is committed, so the install uses prebuilt code and runs no build script.
+Requires DSH `0.2.1-rc.2` (or a compatible `0.2.x`), with Auto review and the Web UI enabled.
 
-```sh
-dsh plugin --profile web add github:chofuhoyu/dsh-review-relay#v0.2.1
+In DeepSeek Harness, open the Plugins page, click "Add plugin", and enter:
+
+```text
+github:chofuhoyu/dsh-review-relay
 ```
 
-The `github:` shorthand resolves over SSH. Without a GitHub SSH key, use `git+https://github.com/chofuhoyu/dsh-review-relay.git#v0.2.1` instead. `#semver:^0.2.0` takes the highest matching tag rather than pinning one. Restart / reload the Web UI, then confirm the bundle row:
+You can also install it into the `web` profile from the CLI (the `github:` shorthand resolves over SSH; without a GitHub SSH key use `git+https://github.com/chofuhoyu/dsh-review-relay.git`):
 
 ```sh
-dsh --profile web --dump-config | grep -A2 review-relay
+dsh plugin --profile web add github:chofuhoyu/dsh-review-relay
 ```
 
-Development installs use a local checkout:
+Refresh the Web page after installing. The plugin:
 
-```sh
-git clone git@github.com:chofuhoyu/dsh-review-relay.git
-dsh plugin --profile web add ./dsh-review-relay
-```
+1. listens to Auto review approval requests and returns the outcome unchanged, never altering allow/deny;
+2. replaces the official approval card in the same seat with a Chinese translation, a note, and the "forward the reviewer reason verbatim" checkbox;
+3. after a rejection, appends the note and reviewer reason to the rejected tool call's `tool/result`, so the model reads them in the tool result.
 
-Without Auto review the plugin still loads, but takes over no approval; ordinary approvals are untouched.
+The `@deepseek-ai/dsh-experimental-auto-review` bundle must be installed and enabled; otherwise there is no Auto review denial to take over, and while the plugin still loads, ordinary approvals are untouched.
+
+For local development, replace `github:chofuhoyu/dsh-review-relay` with the absolute path to your checkout.
 
 Relay DeepSeek Harness **Auto review** rejection reasons — and the note you write when rejecting — back into the working agent. The card shows a Chinese translation, the forwarded reason stays verbatim.
 
-> Status: `0.2.1`, distributed as git tags (pin `#v0.2.1`); the `lib/` build output is committed so installs need no build step. Target: DSH `0.2.x`; development baseline `0.2.1-rc.2`.
+> Status: `0.2.1`, installed straight from GitHub; the `lib/` build output is committed so installs need no build step. Target: DSH `0.2.x`; development baseline `0.2.1-rc.2`.
 
 ![Approval card preview](docs/card-preview.svg)
 
