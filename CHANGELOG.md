@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.1 — 2026-11-13
+
+- Removed the hand-maintained README status lines. The package version, install source, and build behavior are already stated by the manifests and install sections. No functional changes.
+
 ## 0.3.0 — 2026-11-13
 
 - Maintenance release for the `dsh-plugins` superproject: the shared release and development rules moved to the superproject's `AGENTS.md`. No functional changes.
