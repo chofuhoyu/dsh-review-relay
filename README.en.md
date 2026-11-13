@@ -30,8 +30,6 @@ For local development, replace `github:chofuhoyu/dsh-review-relay` with the abso
 
 Relay DeepSeek Harness **Auto review** rejection reasons — and the note you write when rejecting — back into the working agent. The card shows a Chinese translation, the forwarded reason stays verbatim.
 
-> Status: `0.2.1`, installed straight from GitHub; the `lib/` build output is committed so installs need no build step. Target: DSH `0.2.x`; development baseline `0.2.1-rc.2`.
-
 ![Approval card preview](docs/card-preview.svg)
 
 ## What it fixes

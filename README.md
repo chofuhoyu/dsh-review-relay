@@ -30,8 +30,6 @@ dsh plugin --profile web add github:chofuhoyu/dsh-review-relay
 
 把 DeepSeek Harness **Auto review** 的拒绝意见，连同你在拒绝时写下的说明，可靠地送进正在工作的 agent 上下文；审查意见以中文展示，原文逐字保留。
 
-> 状态：`0.2.1`，从 GitHub 直接安装；`lib/` 构建产物已提交，安装时无需构建。目标运行时 DSH `0.2.x`，开发基线 `0.2.1-rc.2`。
-
 ![审批卡片示意](docs/card-preview.svg)
 
 ## 它解决什么
