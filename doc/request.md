@@ -409,7 +409,7 @@ Reviewer reason (translated to zh-CN):
 - `package.json`（含 `dsh.bundle`、`dshVersions`、publish 配置）。
 - `cordis.patch.yml`（插入 `review-relay` 行）。
 - `src/index.ts`（Host）、`src/client/index.ts` + 面板组件、locale 字典。
-- `README.md` / `README.zh.md`：安装、配置、隐私（翻译外发）、已知限制、截图。
+- `README.md`（中文默认）/ `README.en.md`：安装、配置、隐私（翻译外发）、已知限制、截图。
 - `LICENSE`（建议 MIT 或 Apache-2.0）。
 - `tests/`：单元 + 集成。
 - `CHANGELOG.md`。

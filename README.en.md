@@ -1,5 +1,7 @@
 # dsh-review-relay
 
+English | [简体中文](README.md)
+
 ## Install
 
 Requires DSH `0.2.1-rc.2` (or a compatible `0.2.x`), Auto review enabled, and the Web UI. The plugin is distributed as git tags, and `lib/` is committed, so the install uses prebuilt code and runs no build script.

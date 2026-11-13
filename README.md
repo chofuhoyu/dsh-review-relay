@@ -1,5 +1,7 @@
 # dsh-review-relay
 
+简体中文 | [English](README.en.md)
+
 ## 安装
 
 要求：DSH `0.2.1-rc.2` 或兼容的 `0.2.x`，已启用 Auto review，使用 Web UI。插件以 git tag 分发，`lib/` 是提交进仓库的构建产物，安装时不会跑任何构建脚本。

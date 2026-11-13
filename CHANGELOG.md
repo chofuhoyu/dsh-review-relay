@@ -4,6 +4,7 @@
 
 - Documentation-only release: both READMEs now open with the install guide, and the `github:chofuhoyu/dsh-review-relay` shorthand is the primary install spec, with the HTTPS form as the fallback.
 - The install section is no longer buried under the rationale, and the outdated note about a private repository is gone.
+- The Chinese README is the default `README.md`; English moved to `README.en.md`, and both link to each other.
 - Version pins move to `v0.2.1`. No code or `lib/` changes.
 
 ## 0.2.0 — 2026-10-31
